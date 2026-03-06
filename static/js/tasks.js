@@ -7,12 +7,12 @@ const TaskView = {
             const tasks = await API.getTasks();
             const grouped = this.groupByPriority(tasks);
             this.container.innerHTML = `
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-xl sm:text-2xl font-bold text-gray-800 dark:text-gray-100">Priority Tasks</h2>
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+                    <h2 class="text-2xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-400 tracking-tight">Priority Tasks</h2>
                     <button onclick="TaskView.showAddForm()"
-                            class="px-3 sm:px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition-colors">
+                            class="px-5 py-2.5 bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white rounded-xl text-sm font-semibold flex items-center gap-2 shadow-md shadow-brand-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]">
                         <i data-lucide="plus" class="w-4 h-4"></i>
-                        <span class="hidden sm:inline">Add Task</span>
+                        <span>Add Task</span>
                     </button>
                 </div>
                 ${this.renderGroup('High', grouped.High, 'red')}
@@ -34,21 +34,24 @@ const TaskView = {
     },
 
     renderGroup(label, tasks, color) {
-        const borderColors = { red: 'border-red-500', yellow: 'border-yellow-500', green: 'border-green-500' };
+        const borderColors = { red: 'border-red-500', yellow: 'border-amber-500', green: 'border-emerald-500' };
         const badgeColors = {
-            red: 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300',
-            yellow: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-300',
-            green: 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300',
+            red: 'bg-red-50 text-red-600 border border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20',
+            yellow: 'bg-amber-50 text-amber-600 border border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20',
+            green: 'bg-emerald-50 text-emerald-600 border border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20',
         };
+        const textColors = { red: 'text-red-600 dark:text-red-400', yellow: 'text-amber-600 dark:text-amber-400', green: 'text-emerald-600 dark:text-emerald-400' };
+        
         return `
-            <div class="mb-6">
-                <div class="flex items-center gap-2 mb-3 border-l-4 ${borderColors[color]} pl-3">
-                    <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-200">${label} Priority</h3>
-                    <span class="text-xs px-2 py-0.5 rounded-full ${badgeColors[color]}">${tasks.length}</span>
+            <div class="mb-8">
+                <div class="flex items-center gap-3 mb-4 pl-1">
+                    <div class="w-1.5 h-6 rounded-full ${color === 'red' ? 'bg-red-500' : color === 'yellow' ? 'bg-amber-500' : 'bg-emerald-500'}"></div>
+                    <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100 tracking-tight">${label} Priority</h3>
+                    <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full ${badgeColors[color]} shadow-sm">${tasks.length}</span>
                 </div>
-                <div class="space-y-2">
+                <div class="space-y-3">
                     ${tasks.length === 0
-                        ? '<p class="text-gray-400 dark:text-gray-500 text-sm pl-6">No tasks</p>'
+                        ? '<div class="p-6 text-center text-sm text-gray-400 dark:text-gray-500 border border-dashed border-gray-200 dark:border-darkborder rounded-xl">No tasks in this group</div>'
                         : tasks.map(t => this.renderTask(t)).join('')}
                 </div>
             </div>
@@ -67,26 +70,26 @@ const TaskView = {
         let scheduledPct = est > 0 ? Math.min((scheduled / est) * 100, 100) : 0;
 
         const barColor = completed >= est && est > 0
-            ? 'bg-green-500'
-            : 'bg-blue-500';
-        const scheduledBarColor = 'bg-blue-200 dark:bg-blue-800';
+            ? 'bg-gradient-to-r from-emerald-400 to-emerald-500'
+            : 'bg-gradient-to-r from-brand-400 to-brand-500';
+        const scheduledBarColor = 'bg-brand-200 dark:bg-brand-900/50';
 
         let label = '';
         if (est > 0) {
-            label = `${formatDuration(completed)}/${formatDuration(est)}`;
+            label = `<span class="font-medium text-gray-600 dark:text-gray-300">${formatDuration(completed)}</span> / ${formatDuration(est)}`;
         } else if (completed > 0) {
-            label = `${formatDuration(completed)} done`;
+            label = `<span class="font-medium text-gray-600 dark:text-gray-300">${formatDuration(completed)}</span> done`;
         } else if (scheduled > 0) {
-            label = `${formatDuration(scheduled)} scheduled`;
+            label = `<span class="font-medium text-gray-600 dark:text-gray-300">${formatDuration(scheduled)}</span> sched`;
         }
 
         return `
-            <div class="flex items-center gap-2 mt-1">
-                <div class="flex-1 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden relative" title="Scheduled: ${formatDuration(scheduled)} | Completed: ${formatDuration(completed)}${est ? ' | Est: ' + formatDuration(est) : ''}">
+            <div class="flex items-center gap-3 mt-2">
+                <div class="flex-1 h-2 bg-gray-100 dark:bg-darkborder rounded-full overflow-hidden relative" title="Scheduled: ${formatDuration(scheduled)} | Completed: ${formatDuration(completed)}${est ? ' | Est: ' + formatDuration(est) : ''}">
                     ${scheduledPct > 0 ? `<div class="absolute inset-y-0 left-0 ${scheduledBarColor} rounded-full" style="width:${scheduledPct}%"></div>` : ''}
-                    ${progressPct > 0 ? `<div class="absolute inset-y-0 left-0 ${barColor} rounded-full" style="width:${progressPct}%"></div>` : ''}
+                    ${progressPct > 0 ? `<div class="absolute inset-y-0 left-0 ${barColor} rounded-full shadow-[0_0_8px_rgba(59,130,246,0.5)]" style="width:${progressPct}%"></div>` : ''}
                 </div>
-                <span class="text-[10px] text-gray-400 dark:text-gray-500 whitespace-nowrap">${label}</span>
+                <span class="text-[11px] text-gray-400 dark:text-gray-500 whitespace-nowrap">${label}</span>
             </div>
         `;
     },
@@ -103,27 +106,28 @@ const TaskView = {
     renderTask(task) {
         const isCompleted = task.status === 'Completed';
         const checked = isCompleted ? 'checked' : '';
-        const textStyle = isCompleted ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-800 dark:text-gray-100';
+        const textStyle = isCompleted ? 'line-through text-gray-400 dark:text-gray-500 decoration-gray-300 dark:decoration-gray-600' : 'text-gray-800 dark:text-gray-100';
         const dueLabel = task.due_date
-            ? `<span class="text-xs text-gray-400 dark:text-gray-500">${this.formatDeadline(task)}</span>`
+            ? `<span class="flex items-center gap-1 text-[11px] font-medium text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-darkborder/50 px-2 py-0.5 rounded-md border border-gray-100 dark:border-darkborder"><i data-lucide="calendar" class="w-3 h-3"></i>${this.formatDeadline(task)}</span>`
             : '';
         const statusBadge = task.status === 'In Progress'
-            ? '<span class="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">In Progress</span>'
+            ? '<span class="text-[11px] font-bold px-2 py-0.5 rounded-md bg-brand-50 text-brand-600 border border-brand-200 dark:bg-brand-500/10 dark:text-brand-400 dark:border-brand-500/20">In Progress</span>'
             : '';
         const estLabel = task.estimated_duration
-            ? `<span class="text-xs text-gray-400 dark:text-gray-500"><i data-lucide="clock" class="w-3 h-3 inline-block align-text-bottom mr-0.5"></i>${formatDuration(task.estimated_duration)}</span>`
+            ? `<span class="flex items-center gap-1 text-[11px] font-medium text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-darkborder/50 px-2 py-0.5 rounded-md border border-gray-100 dark:border-darkborder"><i data-lucide="clock" class="w-3 h-3"></i>${formatDuration(task.estimated_duration)}</span>`
             : '';
         const schedIcon = getScheduleStatusIcon(task);
 
         return `
-            <div class="flex items-center justify-between bg-white dark:bg-gray-800 rounded-lg px-3 sm:px-4 py-3 shadow-sm border border-gray-100 dark:border-gray-700 group">
-                <div class="flex items-center gap-3 flex-1 min-w-0">
+            <div class="flex items-start sm:items-center justify-between bg-white dark:bg-darkpanel rounded-xl px-4 py-3.5 shadow-sm border border-gray-100 dark:border-darkborder hover:shadow-md hover:border-gray-200 dark:hover:border-gray-700 transition-all duration-200 group relative overflow-hidden ${isCompleted ? 'opacity-75' : ''}">
+                ${isCompleted ? '<div class="absolute inset-0 bg-gray-50/50 dark:bg-darkbg/20 z-0 pointer-events-none"></div>' : ''}
+                <div class="flex items-start sm:items-center gap-4 flex-1 min-w-0 relative z-10">
                     <input type="checkbox" ${checked}
                            onchange="TaskView.toggleStatus(${task.id}, this.checked)"
-                           class="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 cursor-pointer shrink-0">
+                           class="mt-1 sm:mt-0 w-5 h-5 rounded-md border-gray-300 dark:border-gray-600 text-brand-600 focus:ring-brand-500 cursor-pointer shadow-sm transition-colors shrink-0">
                     <div class="flex flex-col min-w-0 flex-1">
-                        <span class="text-sm font-medium ${textStyle} truncate">${escapeHtml(task.title)}</span>
-                        <div class="flex items-center gap-2 flex-wrap">
+                        <span class="text-[15px] font-semibold ${textStyle} truncate transition-all tracking-tight">${escapeHtml(task.title)}</span>
+                        <div class="flex items-center gap-2 flex-wrap mt-1">
                             ${dueLabel}
                             ${estLabel}
                             ${schedIcon}
@@ -132,17 +136,18 @@ const TaskView = {
                         ${this.renderTimeTracking(task)}
                     </div>
                 </div>
-                <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                <div class="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-4 relative z-10">
                     <button onclick="TaskView.showEditForm(${task.id})"
-                            class="p-1.5 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 rounded transition-colors"
+                            class="p-2 text-gray-400 hover:text-brand-600 hover:bg-brand-50 dark:hover:text-brand-400 dark:hover:bg-brand-500/10 rounded-lg transition-colors"
                             title="Edit">
                         <i data-lucide="pencil" class="w-4 h-4"></i>
                     </button>
                     <button onclick="showConfirm('Delete this task and all its scheduled blocks?', () => TaskView.deleteTask(${task.id}))"
-                            class="p-1.5 text-gray-400 hover:text-red-600 dark:hover:text-red-400 rounded transition-colors"
+                            class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:text-red-400 dark:hover:bg-red-500/10 rounded-lg transition-colors"
                             title="Delete">
                         <i data-lucide="trash-2" class="w-4 h-4"></i>
                     </button>
+                </div>
                 </div>
             </div>
         `;
@@ -172,64 +177,64 @@ const TaskView = {
     showAddForm() {
         showModal(`
             <div class="p-6">
-                <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4">Add Task</h3>
+                <h3 class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-400 tracking-tight mb-5">Add Task</h3>
                 <form id="task-form" class="space-y-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Title</label>
+                        <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Title</label>
                         <input type="text" name="title" required
-                               class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+                               class="w-full px-4 py-2.5 border border-gray-300 dark:border-darkborder rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 text-sm bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 transition-shadow">
                     </div>
                     <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Priority</label>
+                            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Priority</label>
                             <select name="priority"
-                                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+                                    class="w-full px-4 py-2.5 border border-gray-300 dark:border-darkborder rounded-xl focus:ring-2 focus:ring-brand-500 text-sm bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 transition-shadow">
                                 <option value="High">High</option>
                                 <option value="Medium" selected>Medium</option>
                                 <option value="Low">Low</option>
                             </select>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Due Date</label>
+                            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Due Date</label>
                             <input type="date" name="due_date"
-                                   class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+                                   class="w-full px-4 py-2.5 border border-gray-300 dark:border-darkborder rounded-xl focus:ring-2 focus:ring-brand-500 text-sm bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 transition-shadow">
                         </div>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Deadline Time <span class="text-gray-400 font-normal">(optional, defaults to end of day)</span></label>
+                        <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Deadline Time <span class="text-gray-400 font-normal">(optional, defaults to end of day)</span></label>
                         <input type="time" name="due_time"
-                               class="w-40 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+                               class="w-40 px-4 py-2.5 border border-gray-300 dark:border-darkborder rounded-xl focus:ring-2 focus:ring-brand-500 text-sm bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 transition-shadow">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Estimated Duration</label>
+                        <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Estimated Duration</label>
                         <div class="flex items-center gap-2">
                             <input type="number" name="est_hours" min="0" max="999" placeholder="0"
-                                   class="w-20 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
-                            <span class="text-sm text-gray-500 dark:text-gray-400">hrs</span>
+                                   class="w-20 px-4 py-2.5 border border-gray-300 dark:border-darkborder rounded-xl focus:ring-2 focus:ring-brand-500 text-sm bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-center transition-shadow">
+                            <span class="text-sm font-medium text-gray-500 dark:text-gray-400">hrs</span>
                             <input type="number" name="est_minutes" min="0" max="59" placeholder="0"
-                                   class="w-20 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
-                            <span class="text-sm text-gray-500 dark:text-gray-400">min</span>
+                                   class="w-20 px-4 py-2.5 border border-gray-300 dark:border-darkborder rounded-xl focus:ring-2 focus:ring-brand-500 text-sm bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-center transition-shadow">
+                            <span class="text-sm font-medium text-gray-500 dark:text-gray-400">min</span>
                         </div>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Block Size (for scheduling)</label>
+                        <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Block Size (for scheduling)</label>
                         <div class="flex items-center gap-2">
-                            <span class="text-xs text-gray-500 dark:text-gray-400">Min</span>
+                            <span class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Min</span>
                             <input type="number" name="min_block" min="5" max="480" placeholder="30"
-                                   class="w-20 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
-                            <span class="text-xs text-gray-500 dark:text-gray-400">Max</span>
+                                   class="w-20 px-4 py-2.5 border border-gray-300 dark:border-darkborder rounded-xl focus:ring-2 focus:ring-brand-500 text-sm bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-center transition-shadow">
+                            <span class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider ml-2">Max</span>
                             <input type="number" name="max_block" min="5" max="480" placeholder="120"
-                                   class="w-20 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
-                            <span class="text-xs text-gray-500 dark:text-gray-400">min</span>
+                                   class="w-20 px-4 py-2.5 border border-gray-300 dark:border-darkborder rounded-xl focus:ring-2 focus:ring-brand-500 text-sm bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-center transition-shadow">
+                            <span class="text-xs font-medium text-gray-500 dark:text-gray-400 ml-1">min</span>
                         </div>
                     </div>
-                    <div class="flex justify-end gap-3 pt-2">
+                    <div class="flex justify-end gap-3 pt-4 mt-2 border-t border-gray-100 dark:border-darkborder">
                         <button type="button" onclick="closeModal()"
-                                class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+                                class="px-5 py-2.5 text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-50 hover:bg-gray-100 dark:bg-darkborder/50 dark:hover:bg-darkborder border border-gray-200 dark:border-darkborder rounded-xl transition-colors">
                             Cancel
                         </button>
                         <button type="submit"
-                                class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors">
+                                class="px-5 py-2.5 bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white text-sm font-semibold rounded-xl shadow-md shadow-brand-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]">
                             Add Task
                         </button>
                     </div>

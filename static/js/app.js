@@ -6,9 +6,13 @@ function initDarkMode() {
     }
 }
 function toggleDarkMode() {
+    document.documentElement.classList.add('theme-transition');
     document.documentElement.classList.toggle('dark');
     localStorage.setItem('pi-schedule-dark', document.documentElement.classList.contains('dark'));
     lucide.createIcons();
+    setTimeout(() => {
+        document.documentElement.classList.remove('theme-transition');
+    }, 300);
 }
 initDarkMode();
 
@@ -170,9 +174,41 @@ document.addEventListener('DOMContentLoaded', () => {
         window.history.replaceState({}, '', '/');
     }
 
+    // ── Mobile floating action bar ───────────────────────────────────────
+    let lastMainScrollY = 0;
+    const floatBar = document.getElementById('mobile-actions-bar');
+    
+    document.addEventListener('scroll', (e) => {
+        if (window.innerWidth >= 768 || currentView !== 'calendar' || !floatBar) {
+            if (floatBar) floatBar.classList.add('-translate-y-[150%]');
+            return;
+        }
+        
+        const target = e.target;
+        if (target.tagName === 'MAIN' || (target.classList && target.classList.contains('overflow-y-auto'))) {
+            const currentScrollTop = target.scrollTop;
+            const lastScroll = parseFloat(target.dataset.lastScroll || 0);
+            
+            // Allow a small buffer (5px) to prevent jittery triggering
+            if (Math.abs(currentScrollTop - lastScroll) < 5) return;
+            
+            // If near top of main container, hide the bar because native header is visible
+            if (currentScrollTop < 100 && target.tagName === 'MAIN') {
+                floatBar.classList.add('-translate-y-[150%]');
+            } else if (currentScrollTop < lastScroll) {
+                // Scrolling up
+                floatBar.classList.remove('-translate-y-[150%]');
+            } else {
+                // Scrolling down
+                floatBar.classList.add('-translate-y-[150%]');
+            }
+            target.dataset.lastScroll = currentScrollTop;
+        }
+    }, true);
+
     // ── Init ─────────────────────────────────────────────────────────────
     loadCalendarList();
-    switchView('tasks');
+    switchView('calendar');
 });
 
 // ── Shared Helpers ──────────────────────────────────────────────────────────
@@ -232,8 +268,8 @@ function showEditTaskModal(task, onSaved) {
 
     showModal(`
         <div class="p-6">
-            <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4">Edit Task</h3>
-            <form id="shared-edit-task-form" class="space-y-4">
+            <h3 class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-400 tracking-tight mb-5">Edit Task</h3>
+            <form id="shared-edit-task-form" class="space-y-5">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Title</label>
                     <input type="text" name="title" value="${escapeAttr(task.title)}" required
@@ -292,14 +328,14 @@ function showEditTaskModal(task, onSaved) {
                         <span class="text-xs text-gray-500 dark:text-gray-400">min</span>
                     </div>
                 </div>
-                <div class="flex justify-end gap-3 pt-2">
+                <div class="flex justify-end gap-3 pt-4 mt-2 border-t border-gray-100 dark:border-darkborder">
                     <button type="button" onclick="closeModal()"
-                            class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+                            class="px-5 py-2.5 text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-50 hover:bg-gray-100 dark:bg-darkborder/50 dark:hover:bg-darkborder border border-gray-200 dark:border-darkborder rounded-xl transition-colors">
                         Cancel
                     </button>
                     <button type="submit"
-                            class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors">
-                        Save
+                            class="px-5 py-2.5 bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white text-sm font-semibold rounded-xl shadow-md shadow-brand-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]">
+                        Save Changes
                     </button>
                 </div>
             </form>
@@ -347,19 +383,21 @@ function showEditTaskModal(task, onSaved) {
 function showToast(message, type = 'info') {
     const container = document.getElementById('toast-container');
     const colors = {
-        success: 'bg-green-600 text-white',
-        error: 'bg-red-600 text-white',
-        info: 'bg-gray-800 text-white',
+        success: 'bg-emerald-500/95 backdrop-blur-md border border-emerald-400/50 shadow-emerald-500/20',
+        error: 'bg-red-500/95 backdrop-blur-md border border-red-400/50 shadow-red-500/20',
+        info: 'bg-gray-900/95 dark:bg-darkpanel/95 backdrop-blur-md border border-gray-700/50 shadow-black/20',
     };
+    const icons = { success: 'check-circle', error: 'alert-circle', info: 'info' };
 
     const toast = document.createElement('div');
-    toast.className = `px-4 py-3 rounded-lg shadow-lg text-sm font-medium pointer-events-auto transition-all duration-300 opacity-0 translate-y-2 ${colors[type] || colors.info}`;
-    toast.textContent = message;
+    toast.className = `flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-lg text-white text-sm font-medium pointer-events-auto transition-all duration-300 opacity-0 translate-y-4 scale-95 origin-bottom ${colors[type] || colors.info}`;
+    toast.innerHTML = `<i data-lucide="${icons[type] || icons.info}" class="w-4 h-4 shrink-0"></i><span>${escapeHtml(message)}</span>`;
     container.appendChild(toast);
+    lucide.createIcons();
 
     // Animate in
     requestAnimationFrame(() => {
-        toast.classList.remove('opacity-0', 'translate-y-2');
+        toast.classList.remove('opacity-0', 'translate-y-4', 'scale-95');
     });
 
     // Limit to 5 visible toasts
@@ -376,32 +414,59 @@ function showToast(message, type = 'info') {
 }
 
 // ── Modal helpers ───────────────────────────────────────────────────────────
+window.modalTimeout = null;
+
 function showModal(html) {
-    document.getElementById('modal-content').innerHTML = html;
-    document.getElementById('modal-backdrop').classList.remove('hidden');
+    const bd = document.getElementById('modal-backdrop');
+    const mc = document.getElementById('modal-content');
+    
+    // If a modal is currently closing, clear the timeout so it doesn't hide the new modal
+    if (window.modalTimeout) {
+        clearTimeout(window.modalTimeout);
+        window.modalTimeout = null;
+    }
+    
+    mc.innerHTML = html;
+    bd.classList.remove('hidden');
+    requestAnimationFrame(() => {
+        bd.classList.add('opacity-100');
+        mc.classList.remove('opacity-0', 'scale-95');
+        mc.classList.add('opacity-100', 'scale-100');
+    });
 }
 
 function closeModal() {
-    document.getElementById('modal-backdrop').classList.add('hidden');
+    const bd = document.getElementById('modal-backdrop');
+    const mc = document.getElementById('modal-content');
+    bd.classList.remove('opacity-100');
+    mc.classList.remove('opacity-100', 'scale-100');
+    mc.classList.add('opacity-0', 'scale-95');
+    
+    if (window.modalTimeout) clearTimeout(window.modalTimeout);
+    window.modalTimeout = setTimeout(() => {
+        bd.classList.add('hidden');
+        window.modalTimeout = null;
+    }, 300);
 }
 
 function showConfirm(message, onConfirm, { destructive = true, confirmText = 'Delete', icon = 'alert-triangle' } = {}) {
     const btnClass = destructive
-        ? 'bg-red-600 hover:bg-red-700 text-white'
-        : 'bg-blue-600 hover:bg-blue-700 text-white';
+        ? 'bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white shadow-md shadow-red-500/20'
+        : 'bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white shadow-md shadow-brand-500/20';
     showModal(`
-        <div class="p-6 text-center">
-            <div class="w-12 h-12 mx-auto mb-4 rounded-full ${destructive ? 'bg-red-100 dark:bg-red-900/30' : 'bg-blue-100 dark:bg-blue-900/30'} flex items-center justify-center">
-                <i data-lucide="${icon}" class="w-6 h-6 ${destructive ? 'text-red-600 dark:text-red-400' : 'text-blue-600 dark:text-blue-400'}"></i>
+        <div class="p-8 text-center">
+            <div class="w-16 h-16 mx-auto mb-5 rounded-2xl ${destructive ? 'bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/50' : 'bg-brand-50 dark:bg-brand-900/20 border border-brand-100 dark:border-brand-900/50'} flex items-center justify-center shadow-sm">
+                <i data-lucide="${icon}" class="w-8 h-8 ${destructive ? 'text-red-500' : 'text-brand-500'}"></i>
             </div>
-            <p class="text-sm text-gray-700 dark:text-gray-300 mb-6">${message}</p>
+            <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">${destructive ? 'Are you sure?' : 'Confirm action'}</h3>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-8">${message}</p>
             <div class="flex justify-center gap-3">
                 <button onclick="closeModal()"
-                        class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+                        class="px-5 py-2.5 text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-50 hover:bg-gray-100 dark:bg-darkborder/50 dark:hover:bg-darkborder border border-gray-200 dark:border-darkborder rounded-xl transition-all">
                     Cancel
                 </button>
                 <button id="confirm-action-btn"
-                        class="px-4 py-2 text-sm ${btnClass} rounded-lg transition-colors flex items-center gap-2">
+                        class="px-5 py-2.5 text-sm font-semibold ${btnClass} rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center gap-2">
                     <i data-lucide="${destructive ? 'trash-2' : 'check'}" class="w-4 h-4"></i>
                     ${confirmText}
                 </button>

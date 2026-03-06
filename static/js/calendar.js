@@ -19,8 +19,19 @@ const CalendarView = {
         `;
 
         this.renderBody();
+        this._updateMobileModeButtons();
         lucide.createIcons();
         this._applyScroll(savedScroll);
+    },
+
+    _updateMobileModeButtons() {
+        document.querySelectorAll('.mobile-mode-btn').forEach(btn => {
+            if (btn.dataset.mode === this.mode) {
+                btn.className = 'mobile-mode-btn flex-1 py-1 rounded-md text-xs font-bold shadow-sm bg-white dark:bg-darkpanel text-brand-600 dark:text-brand-400 border-gray-200 dark:border-darkborder';
+            } else {
+                btn.className = 'mobile-mode-btn flex-1 py-1 rounded-md text-xs font-semibold border-transparent text-gray-500 dark:text-gray-400 bg-transparent';
+            }
+        });
     },
 
     async fetchEvents() {
@@ -59,43 +70,43 @@ const CalendarView = {
         const modes = ['month', 'week', 'day'];
         return `
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
-                <div class="flex items-center gap-2 sm:gap-3">
+                <div class="flex items-center gap-2 sm:gap-3 bg-white/50 dark:bg-darkpanel/50 backdrop-blur-md p-1 rounded-2xl border border-gray-200/50 dark:border-darkborder/50 shadow-sm">
                     <button onclick="CalendarView.navigate(-1)"
-                            class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+                            class="p-2 hover:bg-white dark:hover:bg-darkborder rounded-xl transition-all hover:shadow-sm">
                         <i data-lucide="chevron-left" class="w-5 h-5 text-gray-600 dark:text-gray-300"></i>
                     </button>
-                    <h2 class="text-lg sm:text-xl font-bold text-gray-800 dark:text-gray-100 min-w-36 sm:min-w-48 text-center">${this.getLabel()}</h2>
+                    <h2 class="text-lg sm:text-lg font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-400 tracking-tight min-w-36 sm:min-w-48 text-center">${this.getLabel()}</h2>
                     <button onclick="CalendarView.navigate(1)"
-                            class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+                            class="p-2 hover:bg-white dark:hover:bg-darkborder rounded-xl transition-all hover:shadow-sm">
                         <i data-lucide="chevron-right" class="w-5 h-5 text-gray-600 dark:text-gray-300"></i>
                     </button>
                     <button onclick="CalendarView.goToday()"
-                            class="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg transition-colors">
+                            class="px-4 py-1.5 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-white dark:hover:bg-darkborder border border-gray-200 dark:border-darkborder rounded-xl transition-all hover:shadow-sm ml-1">
                         Today
                     </button>
                 </div>
-                <div class="flex items-center gap-2 sm:gap-3">
+                <div class="flex flex-wrap items-center gap-2 sm:gap-3 mt-3 sm:mt-0">
                     <button onclick="CalendarView.showScheduleTimeForm()"
-                            class="px-3 sm:px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
+                            class="px-4 py-2 sm:px-5 sm:py-2.5 bg-gradient-to-r from-purple-500 to-fuchsia-600 hover:from-purple-400 hover:to-fuchsia-500 text-white rounded-xl text-sm font-semibold flex items-center gap-2 shadow-md shadow-purple-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
                             title="Schedule work time for a task">
                         <i data-lucide="timer" class="w-4 h-4"></i>
                         <span class="hidden sm:inline">Schedule</span>
                     </button>
                     <button onclick="CalendarView.showRescheduleAllModal()"
-                            class="px-3 sm:px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
+                            class="px-4 py-2 sm:px-5 sm:py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white rounded-xl text-sm font-semibold flex items-center gap-2 shadow-md shadow-amber-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
                             title="Reschedule all tasks">
                         <i data-lucide="refresh-cw" class="w-4 h-4"></i>
                         <span class="hidden sm:inline">Reschedule All</span>
                     </button>
                     <button onclick="CalendarView.showAddEventForm()"
-                            class="px-3 sm:px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition-colors">
+                            class="px-4 py-2 sm:px-5 sm:py-2.5 bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white rounded-xl text-sm font-semibold flex items-center gap-2 shadow-md shadow-brand-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]">
                         <i data-lucide="plus" class="w-4 h-4"></i>
                         <span class="hidden sm:inline">Add Event</span>
                     </button>
-                    <div class="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+                    <div class="flex bg-gray-100 dark:bg-darkbg rounded-xl p-1 shadow-inner ml-0 sm:ml-2 border border-gray-200/50 dark:border-darkborder/50">
                         ${modes.map(m => `
                             <button onclick="CalendarView.setMode('${m}')"
-                                    class="px-2 sm:px-3 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-colors ${this.mode === m ? 'bg-white dark:bg-gray-600 shadow-sm text-gray-800 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}">
+                                    class="px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold ${this.mode === m ? 'bg-white dark:bg-darkpanel shadow-sm text-brand-600 dark:text-brand-400 border border-gray-200 dark:border-darkborder' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 border border-transparent'}">
                                 ${m.charAt(0).toUpperCase() + m.slice(1)}
                             </button>
                         `).join('')}
@@ -235,11 +246,11 @@ const CalendarView = {
         const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         const shortDayNames = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
-        let html = '<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">';
+        let html = '<div class="bg-white/95 dark:bg-darkpanel/95 backdrop-blur-xl rounded-2xl shadow-sm border border-gray-200/50 dark:border-darkborder/50 overflow-hidden">';
         html += '<div class="grid grid-cols-7 cal-month-grid">';
 
         dayNames.forEach((d, i) => {
-            html += `<div class="py-2 sm:py-3 text-center text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b border-gray-200 dark:border-gray-700">
+            html += `<div class="py-3 sm:py-4 text-center text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest border-b border-gray-200/50 dark:border-darkborder/50 bg-gray-50/50 dark:bg-darkbg/50">
                 <span class="hidden sm:inline">${d}</span><span class="sm:hidden">${shortDayNames[i]}</span>
             </div>`;
         });
@@ -258,29 +269,30 @@ const CalendarView = {
             const isLastCol = (firstDay + day) % 7 === 0;
 
             html += `
-                <div class="min-h-16 sm:min-h-28 p-1 sm:p-2 border-b ${isLastCol ? '' : 'border-r'} border-gray-100 dark:border-gray-700 cal-day cursor-pointer"
+                <div class="min-h-20 sm:min-h-32 p-1.5 sm:p-2.5 border-b ${isLastCol ? '' : 'border-r'} border-gray-100 dark:border-darkborder/80 cal-day cursor-pointer relative"
                      onclick="CalendarView.onDayClick(${year}, ${month}, ${day})">
-                    <div class="flex justify-between items-start">
-                        <span class="text-xs sm:text-sm font-medium ${isToday ? 'bg-blue-600 text-white rounded-full w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center text-xs' : 'text-gray-700 dark:text-gray-300 px-1'}">${day}</span>
+                    <div class="flex justify-between items-start mb-1">
+                        <span class="text-xs sm:text-sm font-semibold ${isToday ? 'bg-gradient-to-br from-brand-500 to-indigo-600 text-white rounded-full w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center shadow-md' : 'text-gray-700 dark:text-gray-300 px-1'}">${day}</span>
                     </div>
-                    <div class="mt-0.5 sm:mt-1 space-y-0.5 sm:space-y-1">
+                    <div class="space-y-1">
                         ${allItems.slice(0, 3).map(item => {
                             if (item._isTask) {
                                 const tc = this.getTaskColorClasses(item.priority);
-                                return `<div class="text-[10px] sm:text-xs truncate px-1 sm:px-1.5 py-0.5 rounded cursor-pointer ${tc.bg} ${tc.text} border-l-2 ${tc.border}"
+                                return `<div class="text-[10px] sm:text-xs font-medium truncate px-1.5 sm:px-2 py-0.5 rounded-md cursor-pointer ${tc.bg} ${tc.text} border-l-2 ${tc.border} transition-transform hover:scale-[1.02]"
                                              onclick="event.stopPropagation(); CalendarView.showTaskDetail(${item.id})"
                                              title="Task: ${escapeAttr(item.title)} (${item.priority})">
-                                    <i data-lucide="check-square" class="w-2.5 h-2.5 inline-block mr-0.5 align-text-bottom"></i>${escapeHtml(item.title)}
+                                    <i data-lucide="check-square" class="w-3 h-3 inline-block mr-1 align-text-bottom"></i>${escapeHtml(item.title)}
                                 </div>`;
                             }
                             const e = item;
-                            return `<div class="text-[10px] sm:text-xs truncate px-1 sm:px-1.5 py-0.5 rounded cursor-pointer ${e.source === 'Outlook' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300'}"
+                            const isOutlook = e.source === 'Outlook';
+                            return `<div class="text-[10px] sm:text-xs font-medium truncate px-1.5 sm:px-2 py-0.5 rounded-md cursor-pointer ${isOutlook ? 'bg-blue-50/80 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300 border border-blue-200 dark:border-blue-500/20' : 'bg-emerald-50/80 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-500/20'} transition-transform hover:scale-[1.02]"
                                          onclick="event.stopPropagation(); CalendarView.showEventDetail(${e.id})"
                                          title="${escapeAttr(e.title)}${e.calendar_name ? ' [' + escapeAttr(e.calendar_name) + ']' : ''}">
                                     ${escapeHtml(e.title)}
                                 </div>`;
                         }).join('')}
-                        ${allItems.length > 3 ? `<div class="text-[10px] sm:text-xs text-gray-400 dark:text-gray-500 pl-1">+${allItems.length - 3} more</div>` : ''}
+                        ${allItems.length > 3 ? `<div class="text-[10px] sm:text-xs font-semibold text-gray-400 dark:text-gray-500 pl-1 mt-1">+${allItems.length - 3} more</div>` : ''}
                     </div>
                 </div>
             `;
@@ -318,11 +330,12 @@ const CalendarView = {
         }
         const hasAllDayRow = weekAllDay.some(a => a.length > 0) || weekTasks.some(t => t.length > 0);
 
-        let html = '<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">';
+        let html = '<div class="bg-white/95 dark:bg-darkpanel/95 backdrop-blur-xl rounded-2xl shadow-sm border border-gray-200/50 dark:border-darkborder/50 overflow-hidden">';
 
         // Header row
-        html += '<div class="grid grid-cols-8 border-b border-gray-200 dark:border-gray-700">';
-        html += '<div class="py-2 sm:py-3 px-1 sm:px-2 text-xs font-semibold text-gray-400 dark:text-gray-500 border-r border-gray-200 dark:border-gray-700 w-12 sm:w-16"></div>';
+        html += '<div class="flex border-b border-gray-200/50 dark:border-darkborder/50 bg-gray-50/50 dark:bg-darkbg/50">';
+        html += '<div class="py-2 sm:py-3 px-1 sm:px-2 text-xs font-semibold text-gray-400 dark:text-gray-500 border-r border-gray-200/50 dark:border-darkborder/50 w-12 sm:w-16 shrink-0"></div>';
+        html += '<div class="flex-1 grid grid-cols-7">';
         for (let i = 0; i < 7; i++) {
             const d = new Date(startOfWeek);
             d.setDate(d.getDate() + i);
@@ -331,20 +344,21 @@ const CalendarView = {
             const dayLetter = dayName[0];
             const dayNum = d.getDate();
             html += `
-                <div class="py-2 sm:py-3 text-center border-r border-gray-200 dark:border-gray-700 last:border-r-0 ${isToday ? 'bg-blue-50 dark:bg-blue-900/30' : ''}">
-                    <div class="text-[10px] sm:text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
+                <div class="py-2 sm:py-3 text-center border-r border-gray-200/50 dark:border-darkborder/50 last:border-r-0 ${isToday ? 'bg-brand-50/50 dark:bg-brand-900/10' : ''}">
+                    <div class="text-[10px] sm:text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">
                         <span class="hidden sm:inline">${dayName}</span><span class="sm:hidden">${dayLetter}</span>
                     </div>
-                    <div class="text-sm sm:text-lg font-bold ${isToday ? 'text-blue-600 dark:text-blue-400' : 'text-gray-800 dark:text-gray-200'}">${dayNum}</div>
+                    <div class="text-sm sm:text-lg font-bold ${isToday ? 'text-brand-600 dark:text-brand-400' : 'text-gray-900 dark:text-gray-100'}">${dayNum}</div>
                 </div>
             `;
         }
-        html += '</div>';
+        html += '</div></div>';
 
         // All-day / Task row
         if (hasAllDayRow) {
-            html += '<div class="grid grid-cols-8 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30">';
-            html += '<div class="py-1 px-1 sm:px-2 text-[10px] sm:text-xs text-gray-400 dark:text-gray-500 border-r border-gray-200 dark:border-gray-700 w-12 sm:w-16 flex items-center justify-end pr-1 sm:pr-2">All day</div>';
+            html += '<div class="flex border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30">';
+            html += '<div class="py-1 px-1 sm:px-2 text-[10px] sm:text-xs text-gray-400 dark:text-gray-500 border-r border-gray-200 dark:border-gray-700 w-12 sm:w-16 shrink-0 flex items-center justify-end pr-1 sm:pr-2">All day</div>';
+            html += '<div class="flex-1 grid grid-cols-7">';
             for (let i = 0; i < 7; i++) {
                 html += `<div class="py-1 px-0.5 border-r border-gray-200 dark:border-gray-700 last:border-r-0 space-y-0.5">`;
                 weekAllDay[i].forEach(e => {
@@ -366,21 +380,24 @@ const CalendarView = {
                 }
                 html += '</div>';
             }
-            html += '</div>';
+            html += '</div></div>';
         }
 
         // Time grid
         html += `<div class="overflow-y-auto overflow-x-hidden" style="max-height: 600px;">`;
-        html += `<div class="grid grid-cols-8" style="min-height:${gridH}px">`;
+        html += `<div class="flex" style="min-height:${gridH}px">`;
 
         // Time labels
-        html += '<div class="border-r border-gray-200 dark:border-gray-700 w-12 sm:w-16 relative">';
+        html += '<div class="border-r border-gray-200 dark:border-gray-700 w-12 sm:w-16 shrink-0 relative">';
         for (let h = startHour; h < endHour; h++) {
             const label = h === 0 ? '12 AM' : h < 12 ? `${h} AM` : h === 12 ? '12 PM' : `${h - 12} PM`;
             const top = (h - startHour) * HOUR_PX;
             html += `<div class="absolute right-1 sm:right-2 text-[10px] sm:text-xs text-gray-400 dark:text-gray-500" style="top:${top}px;transform:translateY(-50%)">${label}</div>`;
         }
         html += '</div>';
+
+        // Day columns wrapper
+        html += '<div class="flex-1 grid grid-cols-7">';
 
         // Day columns
         for (let i = 0; i < 7; i++) {
@@ -474,10 +491,10 @@ const CalendarView = {
         const dayBlocks = this.getBlocksForDate(this.currentDate);
         const hasAllDayRow = allDay.length > 0 || dayTasks.length > 0;
 
-        let html = '<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">';
+        let html = '<div class="bg-white/95 dark:bg-darkpanel/95 backdrop-blur-xl rounded-2xl shadow-sm border border-gray-200/50 dark:border-darkborder/50 overflow-hidden">';
 
         if (isToday) {
-            html += '<div class="px-4 py-2 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-sm font-medium border-b border-blue-100 dark:border-blue-800">Today</div>';
+            html += '<div class="px-5 py-2.5 bg-gradient-to-r from-brand-50 to-indigo-50 dark:from-brand-900/20 dark:to-indigo-900/20 text-brand-700 dark:text-brand-300 text-sm font-semibold border-b border-brand-100 dark:border-brand-800">Today</div>';
         }
 
         // All-day / task header
@@ -667,16 +684,16 @@ const CalendarView = {
         const priorityCls = this.getTaskColorClasses(block.task_priority || 'Medium');
 
         showModal(`
-            <div class="p-6">
-                <div class="flex items-start justify-between mb-4">
+            <div class="p-8">
+                <div class="flex items-start justify-between mb-6">
                     <div>
-                        <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
-                            <i data-lucide="timer" class="w-5 h-5 text-purple-500"></i>
+                        <h3 class="text-xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-fuchsia-600 dark:from-purple-400 dark:to-fuchsia-400 tracking-tight flex items-center gap-2">
+                            <i data-lucide="timer" class="w-6 h-6 text-purple-500"></i>
                             Scheduled Work
                         </h3>
-                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">${escapeHtml(block.task_title || 'Task')}</p>
+                        <p class="text-[15px] font-medium text-gray-600 dark:text-gray-300 mt-1">${escapeHtml(block.task_title || 'Task')}</p>
                     </div>
-                    <button onclick="closeModal()" class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded">
+                    <button onclick="closeModal()" class="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 bg-gray-50 hover:bg-gray-100 dark:bg-darkborder/50 dark:hover:bg-darkborder rounded-lg transition-colors">
                         <i data-lucide="x" class="w-5 h-5"></i>
                     </button>
                 </div>
@@ -704,34 +721,30 @@ const CalendarView = {
                     </div>
                 </div>
 
-                <div class="flex justify-between items-center mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
-                    <div class="flex gap-2">
+                <div class="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 mt-8 pt-5 border-t border-gray-100 dark:border-darkborder">
+                    <div class="flex flex-1 sm:flex-none gap-2.5">
                         <button onclick="closeModal(); showConfirm('Delete this scheduled block?', () => CalendarView.deleteBlock(${block.id}));"
-                                class="px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg flex items-center gap-2 transition-colors">
+                                class="flex-1 sm:flex-none justify-center px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 bg-red-50 hover:bg-red-100 dark:bg-red-900/10 dark:hover:bg-red-900/20 border border-red-100 dark:border-red-900/30 rounded-xl flex items-center gap-2 transition-all">
                             <i data-lucide="trash-2" class="w-4 h-4"></i>
                             Delete
                         </button>
                         <button onclick="CalendarView.togglePinBlock(${block.id}, ${!block.is_pinned})"
-                                class="px-3 py-2 text-sm ${block.is_pinned ? 'text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/30' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'} rounded-lg flex items-center gap-2 transition-colors">
+                                class="flex-1 sm:flex-none justify-center px-4 py-2 text-sm font-medium ${block.is_pinned ? 'text-amber-600 dark:text-amber-400 bg-amber-50 hover:bg-amber-100 dark:bg-amber-900/10 dark:hover:bg-amber-900/20 border border-amber-100 dark:border-amber-900/30' : 'text-gray-600 dark:text-gray-400 bg-gray-50 hover:bg-gray-100 dark:bg-darkborder/50 dark:hover:bg-darkborder border border-gray-200 dark:border-darkborder'} rounded-xl flex items-center gap-2 transition-all">
                             <i data-lucide="pin" class="w-4 h-4"></i>
                             ${block.is_pinned ? 'Unpin' : 'Pin'}
                         </button>
                     </div>
-                    <div class="flex gap-2">
+                    <div class="flex flex-1 sm:flex-none gap-2.5">
                         ${!block.is_completed ? `
                         <button onclick="closeModal(); CalendarView.showCompleteBlockForm(${block.id});"
-                                class="px-4 py-2 text-sm bg-green-600 hover:bg-green-700 text-white rounded-lg flex items-center gap-2 transition-colors">
+                                class="flex-1 sm:flex-none justify-center px-5 py-2.5 text-sm font-semibold bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white shadow-md shadow-emerald-500/20 rounded-xl flex items-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98]">
                             <i data-lucide="check" class="w-4 h-4"></i>
                             Complete
                         </button>` : ''}
                         <button onclick="closeModal(); CalendarView.showEditBlockForm(${block.id});"
-                                class="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2 transition-colors">
+                                class="flex-1 sm:flex-none justify-center px-5 py-2.5 text-sm font-semibold bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white shadow-md shadow-brand-500/20 rounded-xl flex items-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98]">
                             <i data-lucide="pencil" class="w-4 h-4"></i>
                             Edit
-                        </button>
-                        <button onclick="closeModal()"
-                                class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
-                            Close
                         </button>
                     </div>
                 </div>
@@ -991,13 +1004,13 @@ const CalendarView = {
                         <i data-lucide="pin" class="w-3.5 h-3.5 text-amber-500"></i>
                         Pin this block (survives Reschedule All)
                     </label>
-                    <div class="flex justify-end gap-3 pt-2">
+                    <div class="flex justify-end gap-3 pt-4 mt-2 border-t border-gray-100 dark:border-darkborder">
                         <button type="button" onclick="closeModal()"
-                                class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+                                class="px-5 py-2.5 text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-50 hover:bg-gray-100 dark:bg-darkborder/50 dark:hover:bg-darkborder border border-gray-200 dark:border-darkborder rounded-xl transition-colors">
                             Cancel
                         </button>
                         <button type="submit"
-                                class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm rounded-lg transition-colors">
+                                class="px-5 py-2.5 bg-gradient-to-r from-purple-500 to-fuchsia-600 hover:from-purple-400 hover:to-fuchsia-500 text-white text-sm font-semibold shadow-md shadow-purple-500/20 py-2.5 rounded-xl transition-all flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98]">
                             Schedule
                         </button>
                     </div>
@@ -1100,13 +1113,13 @@ const CalendarView = {
                         <i data-lucide="alert-triangle" class="w-4 h-4 shrink-0 mt-0.5"></i>
                         <span id="auto-schedule-warning-text"></span>
                     </div>
-                    <div class="flex justify-end gap-3 pt-2">
+                    <div class="flex justify-end gap-3 pt-4 mt-2 border-t border-gray-100 dark:border-darkborder">
                         <button type="button" onclick="closeModal()"
-                                class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+                                class="px-5 py-2.5 text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-50 hover:bg-gray-100 dark:bg-darkborder/50 dark:hover:bg-darkborder border border-gray-200 dark:border-darkborder rounded-xl transition-colors">
                             Cancel
                         </button>
                         <button type="submit"
-                                class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm rounded-lg transition-colors flex items-center gap-2">
+                                class="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-fuchsia-600 hover:from-purple-500 hover:to-fuchsia-500 text-white text-sm font-semibold shadow-md shadow-purple-500/20 py-2.5 rounded-xl transition-all flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98]">
                             <i data-lucide="wand-2" class="w-4 h-4"></i>
                             Auto-Schedule
                         </button>
@@ -1208,7 +1221,7 @@ const CalendarView = {
                 </p>
                 <div class="flex justify-center gap-3">
                     <button onclick="closeModal()"
-                            class="px-5 py-2.5 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors">
+                            class="px-8 py-2.5 text-sm font-semibold bg-gray-100 dark:bg-darkborder text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-xl transition-colors shadow-sm">
                         OK
                     </button>
                 </div>
@@ -1231,10 +1244,10 @@ const CalendarView = {
             : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300';
 
         showModal(`
-            <div class="p-6">
-                <div class="flex items-start justify-between mb-4">
-                    <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100 flex-1 mr-4">${escapeHtml(ev.title)}</h3>
-                    <button onclick="closeModal()" class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded">
+            <div class="p-8">
+                <div class="flex items-start justify-between mb-6">
+                    <h3 class="text-xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-brand-600 to-indigo-600 dark:from-brand-400 dark:to-indigo-400 tracking-tight flex-1 mr-4">${escapeHtml(ev.title)}</h3>
+                    <button onclick="closeModal()" class="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 bg-gray-50 hover:bg-gray-100 dark:bg-darkborder/50 dark:hover:bg-darkborder rounded-lg transition-colors">
                         <i data-lucide="x" class="w-5 h-5"></i>
                     </button>
                 </div>
@@ -1271,28 +1284,28 @@ const CalendarView = {
                     </div>` : ''}
                 </div>
 
-                <div class="flex justify-between items-center mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
-                    <div class="flex gap-2">
+                <div class="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 mt-8 pt-5 border-t border-gray-100 dark:border-darkborder">
+                    <div class="flex flex-1 sm:flex-none gap-2.5">
                         <button onclick="closeModal(); showConfirm('Delete this event?${ev.source === 'Outlook' ? ' This will also remove it from Outlook.' : ''}', () => CalendarView.deleteEvent(${ev.id}));"
-                                class="px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg flex items-center gap-2 transition-colors">
+                                class="flex-1 sm:flex-none justify-center px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 bg-red-50 hover:bg-red-100 dark:bg-red-900/10 dark:hover:bg-red-900/20 border border-red-100 dark:border-red-900/30 rounded-xl flex items-center gap-2 transition-all">
                             <i data-lucide="trash-2" class="w-4 h-4"></i>
                             Delete
                         </button>
                         <button onclick="CalendarView.toggleEventSchedule(${ev.id}, ${!ev.excluded_from_schedule}); closeModal();"
-                                class="px-3 py-2 text-sm ${ev.excluded_from_schedule ? 'text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30' : 'text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/30'} rounded-lg flex items-center gap-2 transition-colors"
+                                class="flex-1 sm:flex-none justify-center px-4 py-2 text-sm font-medium ${ev.excluded_from_schedule ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-900/10 dark:hover:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-900/30' : 'text-amber-600 dark:text-amber-400 bg-amber-50 hover:bg-amber-100 dark:bg-amber-900/10 dark:hover:bg-amber-900/20 border border-amber-100 dark:border-amber-900/30'} rounded-xl flex items-center gap-2 transition-all"
                                 title="${ev.excluded_from_schedule ? 'Include in scheduling' : 'Exclude from scheduling'}">
                             <i data-lucide="${ev.excluded_from_schedule ? 'eye' : 'eye-off'}" class="w-4 h-4"></i>
                             ${ev.excluded_from_schedule ? 'Include' : 'Exclude'}
                         </button>
                     </div>
-                    <div class="flex gap-2">
+                    <div class="flex flex-1 sm:flex-none gap-2.5">
                         <button onclick="closeModal(); CalendarView.showEditEventForm(${ev.id});"
-                                class="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2 transition-colors">
+                                class="flex-1 sm:flex-none justify-center px-5 py-2.5 text-sm font-semibold bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white shadow-md shadow-brand-500/20 rounded-xl flex items-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98]">
                             <i data-lucide="pencil" class="w-4 h-4"></i>
                             Edit
                         </button>
                         <button onclick="closeModal()"
-                                class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+                                class="flex-1 sm:flex-none justify-center px-5 py-2.5 text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-50 hover:bg-gray-100 dark:bg-darkborder/50 dark:hover:bg-darkborder border border-gray-200 dark:border-darkborder rounded-xl transition-colors">
                             Close
                         </button>
                     </div>
