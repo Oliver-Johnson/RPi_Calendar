@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pi-Schedule</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = { darkMode: 'class' };
+    </script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 h-screen flex overflow-hidden transition-colors">
+
+    <!-- Mobile header -->
+    <div id="mobile-header" class="fixed top-0 left-0 right-0 z-30 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center justify-between md:hidden">
+        <button id="menu-btn" class="p-1.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+            <i data-lucide="menu" class="w-5 h-5"></i>
+        </button>
+        <h1 class="text-lg font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+            <i data-lucide="clock" class="w-5 h-5 text-blue-600"></i>
+            Pi-Schedule
+        </h1>
+        <button id="mobile-dark-toggle" class="p-1.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+            <i data-lucide="moon" class="w-5 h-5 dark:hidden"></i>
+            <i data-lucide="sun" class="w-5 h-5 hidden dark:block"></i>
+        </button>
+    </div>
+
+    <!-- Sidebar overlay (mobile) -->
+    <div id="sidebar-overlay" class="fixed inset-0 bg-black/50 z-30 hidden md:hidden" onclick="closeSidebar()"></div>
+
+    <!-- Sidebar -->
+    <aside id="sidebar" class="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col shrink-0 fixed md:relative z-40 h-full -translate-x-full md:translate-x-0 transition-transform overflow-y-auto">
+        <!-- Logo -->
+        <div class="p-5 border-b border-gray-200 dark:border-gray-700">
+            <h1 class="text-xl font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+                <i data-lucide="clock" class="w-6 h-6 text-blue-600"></i>
+                Pi-Schedule
+            </h1>
+        </div>
+
+        <!-- Navigation -->
+        <nav class="flex-1 p-3 space-y-1">
+            <button data-view="tasks"
+                    class="nav-btn active w-full text-left px-4 py-2.5 rounded-lg flex items-center gap-3 text-sm font-medium transition-colors">
+                <i data-lucide="check-square" class="w-5 h-5"></i>
+                Priority Tasks
+            </button>
+            <button data-view="calendar"
+                    class="nav-btn w-full text-left px-4 py-2.5 rounded-lg flex items-center gap-3 text-sm font-medium transition-colors">
+                <i data-lucide="calendar" class="w-5 h-5"></i>
+                Calendar
+            </button>
+        </nav>
+
+        <!-- Outlook Calendars -->
+        <div id="outlook-calendars-section" class="px-3 py-2 border-t border-gray-200 dark:border-gray-700 hidden">
+            <div class="flex items-center justify-between mb-2">
+                <h3 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Outlook Calendars</h3>
+                <button id="refresh-calendars-btn" title="Refresh calendar list"
+                        class="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 rounded transition-colors">
+                    <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+                </button>
+            </div>
+            <div id="calendar-list" class="space-y-0.5 max-h-48 overflow-y-auto"></div>
+        </div>
+
+        <!-- Bottom actions -->
+        <div class="p-3 border-t border-gray-200 dark:border-gray-700 space-y-2">
+            <button id="sync-btn"
+                    class="w-full px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center justify-center gap-2 text-sm font-medium transition-colors">
+                <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                Sync Outlook
+            </button>
+            <button id="dark-mode-btn"
+                    class="w-full px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg flex items-center justify-center gap-2 text-sm transition-colors">
+                <i data-lucide="moon" class="w-4 h-4 dark:hidden"></i>
+                <i data-lucide="sun" class="w-4 h-4 hidden dark:block"></i>
+                <span class="dark:hidden">Dark Mode</span>
+                <span class="hidden dark:inline">Light Mode</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 overflow-auto pt-14 md:pt-0">
+        <!-- Task View -->
+        <div id="view-tasks" class="p-4 md:p-6"></div>
+
+        <!-- Calendar View -->
+        <div id="view-calendar" class="hidden p-4 md:p-6"></div>
+    </main>
+
+    <!-- Toast container (stacking) -->
+    <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col-reverse gap-2 pointer-events-none"></div>
+
+    <!-- Modal backdrop -->
+    <div id="modal-backdrop" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center p-4">
+        <div id="modal-content" class="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto"></div>
+    </div>
+
+    <!-- Scripts (order matters) -->
+    <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/api.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/tasks.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/calendar.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
