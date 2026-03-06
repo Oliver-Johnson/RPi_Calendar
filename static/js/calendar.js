@@ -14,10 +14,10 @@ const CalendarView = {
         await this.fetchEvents();
 
         this.container.innerHTML = `
-            <div class="flex flex-col lg:flex-row gap-6 lg:h-full">
-                <div class="flex-1 flex flex-col min-w-0">
+            <div class="flex-1 flex flex-col lg:flex-row gap-6 min-h-0">
+                <div class="flex-1 flex flex-col min-w-0 min-h-0">
                     ${this.renderHeader()}
-                    <div id="cal-body" class="flex-1 overflow-y-auto min-h-0 relative"></div>
+                    <div id="cal-body" class="flex-1 overflow-y-auto min-h-0 relative flex flex-col"></div>
                 </div>
                 <!-- Unscheduled Tray (Side panel on Desktop, stacked on Mobile) -->
                 ${this.renderUnscheduledTray()}
@@ -324,8 +324,8 @@ const CalendarView = {
         const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         const shortDayNames = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
-        let html = '<div class="bg-white/95 dark:bg-darkpanel/95 backdrop-blur-xl rounded-2xl shadow-sm border border-gray-200/50 dark:border-darkborder/50 overflow-hidden">';
-        html += '<div class="grid grid-cols-7 cal-month-grid">';
+        let html = '<div class="flex-1 flex flex-col bg-white/95 dark:bg-darkpanel/95 backdrop-blur-xl rounded-2xl shadow-sm border border-gray-200/50 dark:border-darkborder/50 overflow-hidden">';
+        html += '<div class="flex-1 grid grid-cols-7 cal-month-grid">';
 
         dayNames.forEach((d, i) => {
             html += `<div class="py-3 sm:py-4 text-center text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest border-b border-gray-200/50 dark:border-darkborder/50 bg-gray-50/50 dark:bg-darkbg/50">
@@ -334,7 +334,7 @@ const CalendarView = {
         });
 
         for (let i = 0; i < firstDay; i++) {
-            html += '<div class="min-h-16 sm:min-h-28 p-1 sm:p-2 border-b border-r border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50"></div>';
+            html += '<div class="p-1 sm:p-2 border-b border-r border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50"></div>';
         }
 
         for (let day = 1; day <= daysInMonth; day++) {
@@ -347,7 +347,7 @@ const CalendarView = {
             const isLastCol = (firstDay + day) % 7 === 0;
 
             html += `
-                <div class="min-h-20 sm:min-h-32 p-1.5 sm:p-2.5 border-b ${isLastCol ? '' : 'border-r'} border-gray-100 dark:border-darkborder/80 cal-day cursor-pointer relative"
+                <div class="p-1.5 sm:p-2.5 border-b ${isLastCol ? '' : 'border-r'} border-gray-100 dark:border-darkborder/80 cal-day cursor-pointer relative"
                      onclick="CalendarView.onDayClick(${year}, ${month}, ${day})">
                     <div class="flex justify-between items-start mb-1">
                         <span class="text-xs sm:text-sm font-semibold ${isToday ? 'bg-gradient-to-br from-brand-500 to-indigo-600 text-white rounded-full w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center shadow-md' : 'text-gray-700 dark:text-gray-300 px-1'}">${day}</span>
@@ -379,7 +379,7 @@ const CalendarView = {
         const totalCells = firstDay + daysInMonth;
         const remaining = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
         for (let i = 0; i < remaining; i++) {
-            html += '<div class="min-h-16 sm:min-h-28 p-1 sm:p-2 border-b border-r border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50"></div>';
+            html += '<div class="p-1 sm:p-2 border-b border-r border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50"></div>';
         }
 
         html += '</div></div>';
@@ -408,7 +408,7 @@ const CalendarView = {
         }
         const hasAllDayRow = weekAllDay.some(a => a.length > 0) || weekTasks.some(t => t.length > 0);
 
-        let html = '<div class="bg-white/95 dark:bg-darkpanel/95 backdrop-blur-xl rounded-2xl shadow-sm border border-gray-200/50 dark:border-darkborder/50 overflow-hidden">';
+        let html = '<div class="flex-1 flex flex-col bg-white/95 dark:bg-darkpanel/95 backdrop-blur-xl rounded-2xl shadow-sm border border-gray-200/50 dark:border-darkborder/50 overflow-hidden">';
 
         // Header row
         html += '<div class="flex border-b border-gray-200/50 dark:border-darkborder/50 bg-gray-50/50 dark:bg-darkbg/50">';
@@ -462,7 +462,7 @@ const CalendarView = {
         }
 
         // Time grid
-        html += `<div id="time-grid-scroll" class="overflow-y-auto overflow-x-hidden" style="max-height: 600px;">`;
+        html += `<div id="time-grid-scroll" class="flex-1 overflow-y-auto overflow-x-hidden">`;
         html += `<div class="flex" style="min-height:${gridH}px">`;
 
         // Time labels
@@ -577,7 +577,7 @@ const CalendarView = {
         const dayBlocks = this.getBlocksForDate(this.currentDate);
         const hasAllDayRow = allDay.length > 0 || dayTasks.length > 0;
 
-        let html = '<div class="bg-white/95 dark:bg-darkpanel/95 backdrop-blur-xl rounded-2xl shadow-sm border border-gray-200/50 dark:border-darkborder/50 overflow-hidden">';
+        let html = '<div class="flex-1 flex flex-col bg-white/95 dark:bg-darkpanel/95 backdrop-blur-xl rounded-2xl shadow-sm border border-gray-200/50 dark:border-darkborder/50 overflow-hidden">';
 
         if (isToday) {
             html += '<div class="px-5 py-2.5 bg-gradient-to-r from-brand-50 to-indigo-50 dark:from-brand-900/20 dark:to-indigo-900/20 text-brand-700 dark:text-brand-300 text-sm font-semibold border-b border-brand-100 dark:border-brand-800">Today</div>';
@@ -608,7 +608,7 @@ const CalendarView = {
             html += '</div></div>';
         }
 
-        html += `<div id="time-grid-scroll" class="overflow-y-auto" style="max-height: 650px;">`;
+        html += `<div id="time-grid-scroll" class="flex-1 overflow-y-auto overflow-x-hidden">`;
         html += `<div class="flex" style="min-height:${gridH}px">`;
 
         // Time labels
