@@ -92,7 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <input type="checkbox"
                            data-cal-id="${cal.id}"
                            ${cal.is_enabled ? 'checked' : ''}
-                           class="cal-toggle w-3.5 h-3.5 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 cursor-pointer">
+                           class="cal-toggle w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-brand-500 focus:ring-brand-500 cursor-pointer shrink-0">
                     <span class="text-sm text-gray-700 dark:text-gray-300 truncate flex-1"
                           title="${escapeHtml(cal.name)}${cal.owner_name ? ' (' + escapeHtml(cal.owner_name) + ')' : ''}">
                         ${escapeHtml(cal.name)}
@@ -328,7 +328,25 @@ function showEditTaskModal(task, onSaved) {
                         <span class="text-xs text-gray-500 dark:text-gray-400">min</span>
                     </div>
                 </div>
-                <div class="flex justify-end gap-3 pt-4 mt-2 border-t border-gray-100 dark:border-darkborder">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-gray-100 dark:border-darkborder">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Recurrence</label>
+                        <select name="recurrence_rule"
+                                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+                            <option value="" ${!task.recurrence_rule ? 'selected' : ''}>None (One-time task)</option>
+                            <option value="daily" ${task.recurrence_rule === 'daily' ? 'selected' : ''}>Daily</option>
+                            <option value="weekly" ${task.recurrence_rule === 'weekly' ? 'selected' : ''}>Weekly</option>
+                            <option value="monthly" ${task.recurrence_rule === 'monthly' ? 'selected' : ''}>Monthly</option>
+                            <option value="yearly" ${task.recurrence_rule === 'yearly' ? 'selected' : ''}>Yearly</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Repeat Until <span class="text-gray-400 font-normal">(optional)</span></label>
+                        <input type="date" name="recurrence_until" value="${task.recurrence_until ? task.recurrence_until.split('T')[0] : ''}"
+                               class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+                    </div>
+                </div>
+                <div class="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-darkborder">
                     <button type="button" onclick="closeModal()"
                             class="px-5 py-2.5 text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-50 hover:bg-gray-100 dark:bg-darkborder/50 dark:hover:bg-darkborder border border-gray-200 dark:border-darkborder rounded-xl transition-colors">
                         Cancel
@@ -360,16 +378,22 @@ function showEditTaskModal(task, onSaved) {
             estimated_duration: totalMins > 0 ? totalMins : null,
             min_block_size: minB > 0 ? minB : null,
             max_block_size: maxB > 0 ? maxB : null,
+            recurrence_rule: form.recurrence_rule.value || null,
+            recurrence_until: form.recurrence_until.value ? form.recurrence_until.value + 'T23:59:00' : null,
         };
         await withLoading(btn, async () => {
             try {
                 const result = await API.updateTask(id, data);
                 closeModal();
-                const cleaned = result.cleaned_blocks || 0;
-                const msg = cleaned > 0
-                    ? `Task updated. Removed ${cleaned} future block${cleaned > 1 ? 's' : ''}.`
-                    : 'Task updated';
-                showToast(msg, 'success');
+                let msgs = [];
+                msgs.push('Task updated.');
+                if (result.cleaned_blocks > 0) {
+                    msgs.push(`Removed ${result.cleaned_blocks} future block${result.cleaned_blocks > 1 ? 's' : ''}.`);
+                }
+                if (result.spawned_recurrence) {
+                    msgs.push(`Spawned next recurring task.`);
+                }
+                showToast(msgs.join(' '), 'success');
                 if (onSaved) onSaved();
             } catch (err) {
                 showToast('Failed to update task: ' + err.message, 'error');

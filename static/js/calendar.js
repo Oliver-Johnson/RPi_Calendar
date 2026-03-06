@@ -14,8 +14,14 @@ const CalendarView = {
         await this.fetchEvents();
 
         this.container.innerHTML = `
-            ${this.renderHeader()}
-            <div id="cal-body"></div>
+            <div class="flex flex-col lg:flex-row gap-6 lg:h-full">
+                <div class="flex-1 flex flex-col min-w-0">
+                    ${this.renderHeader()}
+                    <div id="cal-body" class="flex-1 overflow-y-auto min-h-0 relative"></div>
+                </div>
+                <!-- Unscheduled Tray (Side panel on Desktop, stacked on Mobile) -->
+                ${this.renderUnscheduledTray()}
+            </div>
         `;
 
         this.renderBody();
@@ -116,6 +122,70 @@ const CalendarView = {
         `;
     },
 
+    renderUnscheduledTray() {
+        const unscheduled = this.tasks.filter(t => 
+            t.status !== 'Completed' && 
+            t.scheduling_status !== 'fully_scheduled' &&
+            t.estimated_duration > 0
+        );
+
+        // Hide tray entirely when empty so the calendar fills the space
+        if (unscheduled.length === 0) return '';
+
+        // Sort by priority then due date
+        const priorityOrder = { 'High': 1, 'Medium': 2, 'Low': 3 };
+        unscheduled.sort((a, b) => {
+            if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
+                return priorityOrder[a.priority] - priorityOrder[b.priority];
+            }
+            if (a.due_date && b.due_date) return new Date(a.due_date) - new Date(b.due_date);
+            if (a.due_date) return -1;
+            if (b.due_date) return 1;
+            return 0;
+        });
+
+        const taskHTML = unscheduled.map(t => {
+            const timeInfo = t.time_scheduled > 0 
+                ? `${formatDuration(t.time_scheduled)} / ${formatDuration(t.estimated_duration)} sched`
+                : `${formatDuration(t.estimated_duration)} est`;
+            const priorityColors = {
+                'High': 'border-red-500 bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400',
+                'Medium': 'border-amber-500 bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400',
+                'Low': 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400'
+            };
+            const pClass = priorityColors[t.priority] || priorityColors['Medium'];
+
+            return `
+                <div draggable="true" 
+                     ondragstart="CalendarView.onDragStartTask(event, ${t.id})"
+                     class="p-3 mb-2 rounded-xl border-l-4 border-y border-r border-gray-200 dark:border-darkborder bg-white dark:bg-darkpanel shadow-sm cursor-grab hover:shadow-md transition-shadow active:cursor-grabbing ${pClass}">
+                    <div class="font-semibold text-sm truncate tracking-tight text-gray-800 dark:text-gray-100">${escapeHtml(t.title)}</div>
+                    <div class="flex justify-between items-center mt-1 text-[11px] font-medium opacity-80">
+                        <span>${timeInfo}</span>
+                        ${t.due_date ? `<span class="flex items-center gap-1"><i data-lucide="calendar" class="w-3 h-3"></i>${new Date(t.due_date).toLocaleDateString()}</span>` : ''}
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        return `
+            <div class="w-full lg:w-72 flex-shrink-0 flex flex-col bg-gray-50/50 dark:bg-darkbg/50 border border-gray-200/50 dark:border-darkborder/50 rounded-2xl p-4 lg:h-full lg:overflow-hidden backdrop-blur-sm">
+                <h3 class="font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2 mb-4 tracking-tight">
+                    <i data-lucide="list-todo" class="w-4 h-4 text-brand-500"></i>
+                    Unscheduled Tasks
+                </h3>
+                <div class="flex-1 lg:overflow-y-auto pr-1 space-y-2">
+                    ${unscheduled.length === 0 
+                        ? '<div class="text-sm text-gray-400 dark:text-gray-500 text-center py-6 border border-dashed border-gray-200 dark:border-darkborder rounded-xl">All specific tasks are fully scheduled!</div>' 
+                        : taskHTML}
+                </div>
+                <div class="mt-4 pt-3 border-t border-gray-200/50 dark:border-darkborder/50 text-[11px] text-gray-400 dark:text-gray-500 text-center">
+                    Drag tasks onto the calendar grid to schedule them.
+                </div>
+            </div>
+        `;
+    },
+
     renderBody() {
         const body = document.getElementById('cal-body');
         if (this.mode === 'month') body.innerHTML = this.renderMonth();
@@ -175,15 +245,23 @@ const CalendarView = {
     // ── Scroll management ────────────────────────────────────────────────
     _getScrollTop() {
         if (!this.container) return null;
-        const el = this.container.querySelector('.overflow-y-auto');
+        const el = document.getElementById('time-grid-scroll');
         return el ? el.scrollTop : null;
     },
 
     _applyScroll(savedScroll) {
         if (this.mode === 'month') return;
-        const el = this.container ? this.container.querySelector('.overflow-y-auto') : null;
+        const el = document.getElementById('time-grid-scroll');
         if (!el) return;
-        if (savedScroll !== null && savedScroll !== undefined) {
+
+        // If a drop handler set a pending scroll target, use it and center it
+        if (this._pendingScrollHour != null) {
+            const hour = this._pendingScrollHour;
+            this._pendingScrollHour = null;
+            const viewportH = el.clientHeight;
+            const targetPx = Math.max(0, (hour * HOUR_PX) - (viewportH / 2));
+            el.scrollTop = targetPx;
+        } else if (savedScroll !== null && savedScroll !== undefined) {
             el.scrollTop = savedScroll;
         } else {
             // Default: scroll to 1 hour before current time
@@ -384,7 +462,7 @@ const CalendarView = {
         }
 
         // Time grid
-        html += `<div class="overflow-y-auto overflow-x-hidden" style="max-height: 600px;">`;
+        html += `<div id="time-grid-scroll" class="overflow-y-auto overflow-x-hidden" style="max-height: 600px;">`;
         html += `<div class="flex" style="min-height:${gridH}px">`;
 
         // Time labels
@@ -410,6 +488,10 @@ const CalendarView = {
 
             html += `<div class="border-r border-gray-100 dark:border-gray-700 last:border-r-0 time-grid-col ${isToday ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}"
                           onclick="CalendarView.showAddEventForm('${DateUtils.toISODate(d)}')"
+                          ondragenter="CalendarView.onDragEnterGrid(event)"
+                          ondragover="CalendarView.onDragOverGrid(event)"
+                          ondragleave="CalendarView.onDragLeaveGrid(event)"
+                          ondrop="CalendarView.onDropGrid(event, '${DateUtils.toISODate(d)}')"
                           style="min-height:${gridH}px">`;
 
             for (let h = startHour; h < endHour; h++) {
@@ -449,6 +531,8 @@ const CalendarView = {
                     const cls = e.source === 'Outlook' ? 'outlook' : 'manual';
                     const excludedCls = e.excluded_from_schedule ? 'excluded-event' : '';
                     html += `<div class="time-event ${cls} ${excludedCls} ${isShort ? 'short' : ''}" style="${posStyle}"
+                                  draggable="true" ondragstart="CalendarView.onDragStartEvent(event, ${e.id})"
+                                  ondragover="event.preventDefault()" ondrop="CalendarView.onDropGrid(event, '${DateUtils.toISODate(d)}')"
                                   onclick="event.stopPropagation(); CalendarView.showEventDetail(${e.id})">
                         <div class="ev-title">${e.excluded_from_schedule ? '<i data-lucide="eye-off" class="w-3 h-3 inline-block mr-0.5 align-text-bottom opacity-50"></i>' : ''}${escapeHtml(e.title)}</div>
                         <div class="ev-time">${DateUtils.formatTime(s)} – ${DateUtils.formatTime(en)}</div>
@@ -463,6 +547,8 @@ const CalendarView = {
                     const timeLabel = `${DateUtils.formatTime(s)} - ${DateUtils.formatTime(en)}`;
                     const pinIcon = block.is_pinned ? '<i data-lucide="pin" class="w-2.5 h-2.5 pin-icon"></i>' : '';
                     html += `<div class="time-event scheduled-block ${priorityCls} ${completedCls} ${pinnedCls} ${isShort ? 'short' : ''}" style="${posStyle}"
+                                  draggable="true" ondragstart="CalendarView.onDragStartBlock(event, ${block.id})"
+                                  ondragover="event.preventDefault()" ondrop="CalendarView.onDropGrid(event, '${DateUtils.toISODate(d)}')"
                                   onclick="event.stopPropagation(); CalendarView.showBlockDetail(${block.id})">
                         ${pinIcon}
                         <div class="ev-title">${block.is_completed ? '<i data-lucide="check-circle" class="w-3 h-3 inline-block mr-0.5 align-text-bottom"></i>' : '<i data-lucide="timer" class="w-3 h-3 inline-block mr-0.5 align-text-bottom"></i>'}${escapeHtml(block.task_title || 'Task')}</div>
@@ -522,7 +608,7 @@ const CalendarView = {
             html += '</div></div>';
         }
 
-        html += `<div class="overflow-y-auto" style="max-height: 650px;">`;
+        html += `<div id="time-grid-scroll" class="overflow-y-auto" style="max-height: 650px;">`;
         html += `<div class="flex" style="min-height:${gridH}px">`;
 
         // Time labels
@@ -537,6 +623,10 @@ const CalendarView = {
         // Event column
         html += `<div class="flex-1 time-grid-col relative"
                       onclick="CalendarView.showAddEventForm('${DateUtils.toISODate(this.currentDate)}')"
+                      ondragenter="CalendarView.onDragEnterGrid(event)"
+                      ondragover="CalendarView.onDragOverGrid(event)"
+                      ondragleave="CalendarView.onDragLeaveGrid(event)"
+                      ondrop="CalendarView.onDropGrid(event, '${DateUtils.toISODate(this.currentDate)}')"
                       style="min-height:${gridH}px">`;
 
         for (let h = startHour; h < endHour; h++) {
@@ -577,6 +667,8 @@ const CalendarView = {
                 const excludedCls = e.excluded_from_schedule ? 'excluded-event' : '';
                 const calLabel = e.calendar_name ? `<span class="ev-time ml-1 opacity-60">| ${escapeHtml(e.calendar_name)}</span>` : '';
                 html += `<div class="time-event ${cls} ${excludedCls} ${isShort ? 'short' : ''}" style="${posStyle}"
+                              draggable="true" ondragstart="CalendarView.onDragStartEvent(event, ${e.id})"
+                              ondragover="event.preventDefault()" ondrop="CalendarView.onDropGrid(event, '${DateUtils.toISODate(this.currentDate)}')"
                               onclick="event.stopPropagation(); CalendarView.showEventDetail(${e.id})">
                     <div class="ev-title">${e.excluded_from_schedule ? '<i data-lucide="eye-off" class="w-3 h-3 inline-block mr-0.5 align-text-bottom opacity-50"></i>' : ''}${escapeHtml(e.title)}</div>
                     <div class="ev-time">${DateUtils.formatTime(s)} – ${DateUtils.formatTime(en)}${calLabel}</div>
@@ -591,6 +683,8 @@ const CalendarView = {
                 const timeLabel = `${DateUtils.formatTime(s)} - ${DateUtils.formatTime(en)}`;
                 const pinIcon = block.is_pinned ? '<i data-lucide="pin" class="w-2.5 h-2.5 pin-icon"></i>' : '';
                 html += `<div class="time-event scheduled-block ${priorityCls} ${completedCls} ${pinnedCls} ${isShort ? 'short' : ''}" style="${posStyle}"
+                              draggable="true" ondragstart="CalendarView.onDragStartBlock(event, ${block.id})"
+                              ondragover="event.preventDefault()" ondrop="CalendarView.onDropGrid(event, '${DateUtils.toISODate(this.currentDate)}')"
                               onclick="event.stopPropagation(); CalendarView.showBlockDetail(${block.id})">
                     ${pinIcon}
                     <div class="ev-title">${block.is_completed ? '<i data-lucide="check-circle" class="w-3 h-3 inline-block mr-0.5 align-text-bottom"></i>' : '<i data-lucide="timer" class="w-3 h-3 inline-block mr-0.5 align-text-bottom"></i>'}${escapeHtml(block.task_title || 'Task')}</div>
@@ -603,6 +697,170 @@ const CalendarView = {
         html += '</div></div></div>';
         return html;
     },
+
+    // ── Drag and Drop Handlers ──────────────────────────────────────────
+
+    onDragStartEvent(event, eventId) {
+        console.log('[DnD] dragstart event', eventId);
+        event.stopPropagation();
+        event.dataTransfer.setData('text/plain', JSON.stringify({ type: 'event', id: eventId }));
+        event.dataTransfer.effectAllowed = 'move';
+        const el = event.currentTarget;
+        setTimeout(() => el.classList.add('drag-source'), 0);
+        el.addEventListener('dragend', () => {
+            console.log('[DnD] dragend event', eventId);
+            el.classList.remove('drag-source');
+        }, { once: true });
+    },
+
+    onDragStartTask(event, taskId) {
+        console.log('[DnD] dragstart task', taskId);
+        event.dataTransfer.setData('text/plain', JSON.stringify({ type: 'task', id: taskId }));
+        event.dataTransfer.effectAllowed = 'copyMove';
+    },
+
+    onDragStartBlock(event, blockId) {
+        console.log('[DnD] dragstart block', blockId);
+        event.stopPropagation(); // Don't trigger parent column's click
+        event.dataTransfer.setData('text/plain', JSON.stringify({ type: 'block', id: blockId }));
+        event.dataTransfer.effectAllowed = 'move';
+        const el = event.currentTarget;
+        setTimeout(() => el.classList.add('drag-source'), 0);
+        el.addEventListener('dragend', () => {
+            console.log('[DnD] dragend block', blockId);
+            el.classList.remove('drag-source');
+        }, { once: true });
+    },
+
+    onDragEnterGrid(event) {
+        event.preventDefault();
+        event.currentTarget.classList.add('drag-over');
+    },
+
+    onDragOverGrid(event) {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'move';
+    },
+
+    onDragLeaveGrid(event) {
+        if (!event.currentTarget.contains(event.relatedTarget)) {
+            event.currentTarget.classList.remove('drag-over');
+        }
+    },
+
+    async onDropGrid(event, dateStr) {
+        event.preventDefault();
+        event.stopPropagation();
+        console.log('[DnD] drop on', dateStr);
+
+        // Clean up any drag-over highlights
+        document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+
+        // Find the time-grid-col (event may have fired on a child element)
+        let col = event.currentTarget;
+        if (!col.classList.contains('time-grid-col')) {
+            col = col.closest('.time-grid-col');
+        }
+
+        // Calculate Y position accounting for scroll
+        let y;
+        if (col) {
+            const scrollEl = document.getElementById('time-grid-scroll');
+            const scrollTop = scrollEl ? scrollEl.scrollTop : 0;
+            const refRect = scrollEl ? scrollEl.getBoundingClientRect() : col.getBoundingClientRect();
+            y = (event.clientY - refRect.top) + scrollTop;
+        } else {
+            // Fallback: use the drop target's own position
+            const rect = event.currentTarget.getBoundingClientRect();
+            y = event.clientY - rect.top;
+        }
+
+        // Snap to 15-minute intervals
+        const hours = Math.max(0, Math.min(y / HOUR_PX, 23.75));
+        const h = Math.floor(hours);
+        let m = Math.round((hours - h) * 60 / 15) * 15;
+        let exactH = h;
+        let exactM = m;
+        if (exactM >= 60) { exactH += 1; exactM = 0; }
+        console.log('[DnD] computed time', exactH + ':' + String(exactM).padStart(2, '0'));
+
+        const startDt = new Date(dateStr + 'T00:00:00');
+        startDt.setHours(exactH, exactM, 0, 0);
+
+        try {
+            const dataStr = event.dataTransfer.getData('text/plain');
+            console.log('[DnD] transfer data:', dataStr);
+            if (!dataStr) { console.warn('[DnD] No transfer data!'); return; }
+            const data = JSON.parse(dataStr);
+
+            if (data.type === 'task') {
+                const task = this.tasks.find(t => t.id === data.id);
+                if (!task) { console.warn('[DnD] Task not found:', data.id); return; }
+
+                let durationMins = 60;
+                if (task.estimated_duration && task.time_scheduled != null) {
+                    const remaining = task.estimated_duration - task.time_scheduled;
+                    if (remaining > 0) durationMins = remaining;
+                }
+                if (task.max_block_size && durationMins > task.max_block_size) durationMins = task.max_block_size;
+                if (durationMins > 120) durationMins = 120;
+
+                const endDt = new Date(startDt.getTime() + durationMins * 60000);
+                console.log('[DnD] Creating block:', DateUtils.toISODateTime(startDt), '->', DateUtils.toISODateTime(endDt));
+                await API.createScheduledBlock({
+                    task_id: task.id,
+                    start_time: DateUtils.toISODateTime(startDt),
+                    end_time: DateUtils.toISODateTime(endDt),
+                    is_pinned: true
+                });
+                this._pendingScrollHour = exactH;
+                await this.render();
+                showToast('Task scheduled!', 'success');
+
+            } else if (data.type === 'block') {
+                const block = this.blocks.find(b => b.id === data.id);
+                if (!block) { console.warn('[DnD] Block not found:', data.id); return; }
+
+                const oldStart = new Date(block.start_time);
+                const oldEnd = new Date(block.end_time);
+                const durationMins = (oldEnd - oldStart) / 60000;
+                const endDt = new Date(startDt.getTime() + durationMins * 60000);
+
+                console.log('[DnD] Moving block', block.id, 'to', DateUtils.toISODateTime(startDt), '->', DateUtils.toISODateTime(endDt));
+                await API.updateScheduledBlock(block.id, {
+                    start_time: DateUtils.toISODateTime(startDt),
+                    end_time: DateUtils.toISODateTime(endDt),
+                    is_pinned: true
+                });
+                this._pendingScrollHour = exactH;
+                await this.render();
+                showToast('Block moved!', 'success');
+
+            } else if (data.type === 'event') {
+                const ev = this.events.find(e => e.id === data.id);
+                if (!ev) { console.warn('[DnD] Event not found:', data.id); return; }
+
+                const oldStart = new Date(ev.start_time);
+                const oldEnd = new Date(ev.end_time);
+                const durationMins = (oldEnd - oldStart) / 60000;
+                const endDt = new Date(startDt.getTime() + durationMins * 60000);
+
+                console.log('[DnD] Moving event', ev.id, 'to', DateUtils.toISODateTime(startDt), '->', DateUtils.toISODateTime(endDt));
+                await API.updateEvent(ev.id, {
+                    start_time: DateUtils.toISODateTime(startDt),
+                    end_time: DateUtils.toISODateTime(endDt),
+                });
+                this._pendingScrollHour = exactH;
+                await this.render();
+                const label = ev.source === 'Outlook' ? 'Event moved & synced to Outlook!' : 'Event moved!';
+                showToast(label, 'success');
+            }
+        } catch (err) {
+            console.error('[DnD] Drop error:', err);
+            showToast('Failed to drop item: ' + err.message, 'error');
+        }
+    },
+
 
     // ── Event helpers ───────────────────────────────────────────────────
     getEventsForDate(date) {
@@ -1707,7 +1965,7 @@ const CalendarView = {
                                 Add blocked time
                             </button>
                         </div>
-                        <p class="text-xs text-gray-400 dark:text-gray-500 mb-2">
+                        <p class="text-xs text-gray-600 dark:text-gray-400 mb-2 font-medium">
                             Time ranges where no blocks should be placed. Select which days each range applies to.
                         </p>
                         <div id="blocked-ranges-list" class="space-y-3"></div>
@@ -1741,10 +1999,10 @@ const CalendarView = {
             const daysSet = new Set(days);
             const dayCheckboxes = dayLabels.map((label, i) => {
                 const checked = daysSet.has(i) ? 'checked' : '';
-                return `<label class="flex items-center gap-0.5 cursor-pointer">
+                return `<label class="flex items-center gap-1.5 cursor-pointer shrink-0">
                     <input type="checkbox" data-day="${i}" ${checked}
-                           class="w-3 h-3 rounded border-gray-300 dark:border-gray-600 text-amber-500 focus:ring-amber-500">
-                    <span class="text-[10px] ${i >= 5 ? 'text-amber-600 dark:text-amber-400' : ''}">${label}</span>
+                           class="w-3.5 h-3.5 rounded border-gray-300 dark:border-gray-600 text-amber-500 focus:ring-amber-500 shrink-0">
+                    <span class="text-xs font-semibold ${i >= 5 ? 'text-amber-600 dark:text-amber-500' : 'text-gray-700 dark:text-gray-300'}">${label}</span>
                 </label>`;
             }).join('');
 

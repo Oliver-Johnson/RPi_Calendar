@@ -120,3 +120,70 @@
     .cal-month-grid .min-h-28 { min-height: 4rem; }
     .time-event .ev-title { font-size: 0.65rem; }
 }
+
+/* ── Drag and Drop ────────────────────────────────────────────────── */
+/* Visual feedback for the element being dragged */
+.time-event.drag-source {
+    opacity: 0.35;
+    transform: scale(0.97);
+}
+/* Draggable blocks show a grab cursor */
+.time-event[draggable="true"] {
+    cursor: grab;
+}
+.time-event[draggable="true"]:active {
+    cursor: grabbing;
+}
+/* Drop zone highlight when hovering during drag */
+.time-grid-col.drag-over {
+    background-color: rgba(99, 102, 241, 0.08) !important;
+    box-shadow: inset 0 0 0 2px rgba(99, 102, 241, 0.5);
+    border-radius: 4px;
+}
+
+/* ── Modern Checkboxes ────────────────────────────────────────────── */
+input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    border: 1.5px solid #d1d5db; /* gray-300 */
+    border-radius: 0.25rem;
+    background-color: transparent;
+    display: inline-grid;
+    place-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    margin: 0;
+}
+
+.dark input[type="checkbox"] {
+    border-color: #4b5563; /* gray-600 */
+}
+
+input[type="checkbox"]::before {
+    content: "";
+    width: 65%;
+    height: 65%;
+    transform: scale(0);
+    transition: 120ms transform ease-in-out;
+    box-shadow: inset 1em 1em white;
+    background-color: white;
+    transform-origin: center;
+    clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+}
+
+input[type="checkbox"]:checked {
+    background-color: currentColor;
+    border-color: currentColor;
+}
+
+input[type="checkbox"]:checked::before {
+    transform: scale(1);
+}
+
+input[type="checkbox"]:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+}
+.dark .time-grid-col.drag-over {
+    background-color: rgba(99, 102, 241, 0.15) !important;
+}

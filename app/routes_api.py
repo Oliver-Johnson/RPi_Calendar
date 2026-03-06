@@ -7,6 +7,7 @@ api_bp = Blueprint('api', __name__)
 
 VALID_PRIORITIES = ('High', 'Medium', 'Low')
 VALID_STATUSES = ('Pending', 'In Progress', 'Completed')
+VALID_RECURRENCES = ('daily', 'weekly', 'monthly', 'yearly')
 
 
 # ── Tasks ────────────────────────────────────────────────────────────────────
@@ -64,6 +65,17 @@ def create_task():
     min_block = _parse_optional_int(data, 'min_block_size')
     max_block = _parse_optional_int(data, 'max_block_size')
 
+    recurrence_rule = data.get('recurrence_rule')
+    if recurrence_rule and recurrence_rule not in VALID_RECURRENCES:
+        return jsonify({'error': f'recurrence_rule must be one of {VALID_RECURRENCES}'}), 400
+
+    recurrence_until = None
+    if data.get('recurrence_until'):
+        try:
+            recurrence_until = datetime.fromisoformat(data['recurrence_until'])
+        except ValueError:
+            return jsonify({'error': 'Invalid recurrence_until format'}), 400
+
     task = Task(
         title=data['title'].strip(),
         priority=priority,
@@ -72,6 +84,8 @@ def create_task():
         estimated_duration=estimated_duration,
         min_block_size=min_block,
         max_block_size=max_block,
+        recurrence_rule=recurrence_rule,
+        recurrence_until=recurrence_until,
     )
     db.session.add(task)
     db.session.commit()
@@ -88,6 +102,52 @@ def _parse_optional_int(data, key):
         return val if val > 0 else None
     except (ValueError, TypeError):
         return None
+
+
+def _generate_next_recurrence(task):
+    """Generate the next instance of a recurring task."""
+    if not task.recurrence_rule:
+        return None
+
+    # Determine base date to shift
+    base_date = task.due_date if task.due_date else datetime.now()
+    next_due = None
+
+    if task.recurrence_rule == 'daily':
+        next_due = base_date + timedelta(days=1)
+    elif task.recurrence_rule == 'weekly':
+        next_due = base_date + timedelta(days=7)
+    elif task.recurrence_rule == 'monthly':
+        # Simple month increment (handling Dec -> Jan)
+        m = base_date.month % 12 + 1
+        y = base_date.year + (base_date.month // 12)
+        # Handle day overflow (e.g. Jan 31 -> Feb 28)
+        import calendar
+        d = min(base_date.day, calendar.monthrange(y, m)[1])
+        next_due = base_date.replace(year=y, month=m, day=d)
+    elif task.recurrence_rule == 'yearly':
+        import calendar
+        y = base_date.year + 1
+        d = min(base_date.day, calendar.monthrange(y, base_date.month)[1])
+        next_due = base_date.replace(year=y, day=d)
+
+    # If it surpasses recurrence_until, do not spawn
+    if task.recurrence_until and next_due > task.recurrence_until:
+        return None
+        
+    next_task = Task(
+        title=task.title,
+        priority=task.priority,
+        due_date=next_due,
+        status='Pending',
+        estimated_duration=task.estimated_duration,
+        min_block_size=task.min_block_size,
+        max_block_size=task.max_block_size,
+        recurrence_rule=task.recurrence_rule,
+        recurrence_until=task.recurrence_until,
+        parent_task_id=task.parent_task_id or task.id
+    )
+    return next_task
 
 
 @api_bp.route('/tasks/<int:task_id>', methods=['PUT'])
@@ -125,6 +185,12 @@ def update_task(task_id):
             for block in future_blocks:
                 db.session.delete(block)
             data['_cleaned_blocks'] = len(future_blocks)
+            
+            # Spawn next recurrence if applicable
+            next_task = _generate_next_recurrence(task)
+            if next_task:
+                db.session.add(next_task)
+                data['_spawned_recurrence'] = True
 
     if 'due_date' in data:
         if data['due_date'] is None:
@@ -151,10 +217,27 @@ def update_task(task_id):
     if 'max_block_size' in data:
         task.max_block_size = _parse_optional_int(data, 'max_block_size')
 
+    if 'recurrence_rule' in data:
+        rule = data['recurrence_rule']
+        if rule and rule not in VALID_RECURRENCES:
+            return jsonify({'error': f'recurrence_rule must be one of {VALID_RECURRENCES}'}), 400
+        task.recurrence_rule = rule or None
+
+    if 'recurrence_until' in data:
+        if data['recurrence_until'] is None:
+            task.recurrence_until = None
+        else:
+            try:
+                task.recurrence_until = datetime.fromisoformat(data['recurrence_until'])
+            except ValueError:
+                return jsonify({'error': 'Invalid recurrence_until format'}), 400
+
     db.session.commit()
     result = task.to_dict()
     if '_cleaned_blocks' in data:
         result['cleaned_blocks'] = data['_cleaned_blocks']
+    if '_spawned_recurrence' in data:
+        result['spawned_recurrence'] = data['_spawned_recurrence']
     return jsonify(result)
 
 

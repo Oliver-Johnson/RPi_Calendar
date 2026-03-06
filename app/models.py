@@ -13,6 +13,9 @@ class Task(db.Model):
     estimated_duration = db.Column(db.Integer, nullable=True)  # minutes
     min_block_size = db.Column(db.Integer, nullable=True)  # minutes
     max_block_size = db.Column(db.Integer, nullable=True)  # minutes
+    recurrence_rule = db.Column(db.String(50), nullable=True)  # daily, weekly, monthly, etc.
+    recurrence_until = db.Column(db.DateTime, nullable=True)
+    parent_task_id = db.Column(db.Integer, db.ForeignKey('tasks.id'), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.now)
 
     scheduled_blocks = db.relationship('ScheduledBlock', backref='task', lazy=True,
@@ -53,6 +56,9 @@ class Task(db.Model):
             'estimated_duration': self.estimated_duration,
             'min_block_size': self.min_block_size,
             'max_block_size': self.max_block_size,
+            'recurrence_rule': self.recurrence_rule,
+            'parent_task_id': self.parent_task_id,
+            'recurrence_until': self.recurrence_until.isoformat() if self.recurrence_until else None,
             'created_at': self.created_at.isoformat(),
             'time_scheduled': time_summary['scheduled_minutes'],
             'time_completed': time_summary['completed_minutes'],

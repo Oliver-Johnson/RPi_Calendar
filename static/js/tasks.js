@@ -157,8 +157,11 @@ const TaskView = {
         try {
             const result = await API.updateTask(id, { status: completed ? 'Completed' : 'Pending' });
             this.render();
-            if (completed && result.cleaned_blocks > 0) {
-                showToast(`Task completed! Removed ${result.cleaned_blocks} future block${result.cleaned_blocks > 1 ? 's' : ''}.`, 'success');
+            if (completed) {
+                let msgs = ['Task completed!'];
+                if (result.cleaned_blocks > 0) msgs.push(`Removed ${result.cleaned_blocks} future block${result.cleaned_blocks > 1 ? 's' : ''}.`);
+                if (result.spawned_recurrence) msgs.push(`Spawned next recurring task.`);
+                showToast(msgs.join(' '), 'success');
             }
         } catch (err) {
             showToast('Failed to update task', 'error');
@@ -228,6 +231,24 @@ const TaskView = {
                             <span class="text-xs font-medium text-gray-500 dark:text-gray-400 ml-1">min</span>
                         </div>
                     </div>
+                    <div class="grid grid-cols-2 gap-4 pt-2 border-t border-gray-200/50 dark:border-darkborder/50">
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Recurrence</label>
+                            <select name="recurrence_rule"
+                                    class="w-full px-4 py-2.5 border border-gray-300 dark:border-darkborder rounded-xl focus:ring-2 focus:ring-brand-500 text-sm bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 transition-shadow">
+                                <option value="">None (One-time task)</option>
+                                <option value="daily">Daily</option>
+                                <option value="weekly">Weekly</option>
+                                <option value="monthly">Monthly</option>
+                                <option value="yearly">Yearly</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Repeat Until <span class="text-gray-400 font-normal">(optional)</span></label>
+                            <input type="date" name="recurrence_until"
+                                   class="w-full px-4 py-2.5 border border-gray-300 dark:border-darkborder rounded-xl focus:ring-2 focus:ring-brand-500 text-sm bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 transition-shadow">
+                        </div>
+                    </div>
                     <div class="flex justify-end gap-3 pt-4 mt-2 border-t border-gray-100 dark:border-darkborder">
                         <button type="button" onclick="closeModal()"
                                 class="px-5 py-2.5 text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-50 hover:bg-gray-100 dark:bg-darkborder/50 dark:hover:bg-darkborder border border-gray-200 dark:border-darkborder rounded-xl transition-colors">
@@ -264,6 +285,14 @@ const TaskView = {
             const maxB = parseInt(form.max_block.value) || 0;
             if (minB > 0) data.min_block_size = minB;
             if (maxB > 0) data.max_block_size = maxB;
+
+            if (form.recurrence_rule.value) {
+                data.recurrence_rule = form.recurrence_rule.value;
+                if (form.recurrence_until.value) {
+                    data.recurrence_until = form.recurrence_until.value + 'T23:59:00';
+                }
+            }
+
             await withLoading(btn, async () => {
                 try {
                     await API.createTask(data);
