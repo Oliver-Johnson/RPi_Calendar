@@ -28,6 +28,28 @@ const CalendarView = {
         this._updateMobileModeButtons();
         lucide.createIcons();
         this._applyScroll(savedScroll);
+        this._attachTraySearchListener();
+    },
+
+    _attachTraySearchListener() {
+        const input = document.getElementById('tray-search-input');
+        if (input) {
+            input.addEventListener('input', (e) => {
+                this._traySearchQuery = e.target.value;
+                // Re-render just the tray content without full re-render
+                const trayContainer = input.closest('.w-full.lg\\:w-72, [class*="lg:w-72"]');
+                if (trayContainer) {
+                    trayContainer.outerHTML = this.renderUnscheduledTray();
+                    lucide.createIcons();
+                    this._attachTraySearchListener();
+                    const newInput = document.getElementById('tray-search-input');
+                    if (newInput) {
+                        newInput.focus();
+                        newInput.selectionStart = newInput.selectionEnd = newInput.value.length;
+                    }
+                }
+            });
+        }
     },
 
     _updateMobileModeButtons() {
@@ -122,15 +144,23 @@ const CalendarView = {
         `;
     },
 
+    _traySearchQuery: '',
+
     renderUnscheduledTray() {
-        const unscheduled = this.tasks.filter(t => 
+        let unscheduled = this.tasks.filter(t => 
             t.status !== 'Completed' && 
             t.scheduling_status !== 'fully_scheduled' &&
             t.estimated_duration > 0
         );
 
         // Hide tray entirely when empty so the calendar fills the space
-        if (unscheduled.length === 0) return '';
+        if (unscheduled.length === 0 && !this._traySearchQuery) return '';
+
+        // Apply tray search filter
+        if (this._traySearchQuery) {
+            const q = this._traySearchQuery.toLowerCase();
+            unscheduled = unscheduled.filter(t => t.title.toLowerCase().includes(q));
+        }
 
         // Sort by priority then due date
         const priorityOrder = { 'High': 1, 'Medium': 2, 'Low': 3 };
@@ -170,13 +200,19 @@ const CalendarView = {
 
         return `
             <div class="w-full lg:w-72 flex-shrink-0 flex flex-col bg-gray-50/50 dark:bg-darkbg/50 border border-gray-200/50 dark:border-darkborder/50 rounded-2xl p-4 lg:h-full lg:overflow-hidden backdrop-blur-sm">
-                <h3 class="font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2 mb-4 tracking-tight">
+                <h3 class="font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2 mb-3 tracking-tight">
                     <i data-lucide="list-todo" class="w-4 h-4 text-brand-500"></i>
                     Unscheduled Tasks
                 </h3>
+                <div class="relative mb-3">
+                    <i data-lucide="search" class="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 pointer-events-none"></i>
+                    <input type="text" id="tray-search-input" placeholder="Filter tasks..."
+                           value="${escapeAttr(this._traySearchQuery)}"
+                           class="w-full pl-8 pr-3 py-2 border border-gray-200 dark:border-darkborder rounded-lg text-xs bg-white dark:bg-darkpanel text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-shadow placeholder-gray-400 dark:placeholder-gray-500">
+                </div>
                 <div class="flex-1 lg:overflow-y-auto pr-1 space-y-2">
                     ${unscheduled.length === 0 
-                        ? '<div class="text-sm text-gray-400 dark:text-gray-500 text-center py-6 border border-dashed border-gray-200 dark:border-darkborder rounded-xl">All specific tasks are fully scheduled!</div>' 
+                        ? '<div class="text-sm text-gray-400 dark:text-gray-500 text-center py-6 border border-dashed border-gray-200 dark:border-darkborder rounded-xl">No matching tasks</div>' 
                         : taskHTML}
                 </div>
                 <div class="mt-4 pt-3 border-t border-gray-200/50 dark:border-darkborder/50 text-[11px] text-gray-400 dark:text-gray-500 text-center">
@@ -534,8 +570,10 @@ const CalendarView = {
                                   draggable="true" ondragstart="CalendarView.onDragStartEvent(event, ${e.id})"
                                   ondragover="event.preventDefault()" ondrop="CalendarView.onDropGrid(event, '${DateUtils.toISODate(d)}')"
                                   onclick="event.stopPropagation(); CalendarView.showEventDetail(${e.id})">
+                        <div class="resize-handle resize-handle-top" onmousedown="event.stopPropagation(); CalendarView.onResizeStart(event, ${e.id}, 'event', 'top')"></div>
                         <div class="ev-title">${e.excluded_from_schedule ? '<i data-lucide="eye-off" class="w-3 h-3 inline-block mr-0.5 align-text-bottom opacity-50"></i>' : ''}${escapeHtml(e.title)}</div>
                         <div class="ev-time">${DateUtils.formatTime(s)} – ${DateUtils.formatTime(en)}</div>
+                        <div class="resize-handle resize-handle-bottom" onmousedown="event.stopPropagation(); CalendarView.onResizeStart(event, ${e.id}, 'event', 'bottom')"></div>
                     </div>`;
                 } else {
                     const block = item.data;
@@ -550,9 +588,11 @@ const CalendarView = {
                                   draggable="true" ondragstart="CalendarView.onDragStartBlock(event, ${block.id})"
                                   ondragover="event.preventDefault()" ondrop="CalendarView.onDropGrid(event, '${DateUtils.toISODate(d)}')"
                                   onclick="event.stopPropagation(); CalendarView.showBlockDetail(${block.id})">
+                        <div class="resize-handle resize-handle-top" onmousedown="event.stopPropagation(); CalendarView.onResizeStart(event, ${block.id}, 'block', 'top')"></div>
                         ${pinIcon}
                         <div class="ev-title">${block.is_completed ? '<i data-lucide="check-circle" class="w-3 h-3 inline-block mr-0.5 align-text-bottom"></i>' : '<i data-lucide="timer" class="w-3 h-3 inline-block mr-0.5 align-text-bottom"></i>'}${escapeHtml(block.task_title || 'Task')}</div>
                         <div class="ev-time">${timeLabel}</div>
+                        <div class="resize-handle resize-handle-bottom" onmousedown="event.stopPropagation(); CalendarView.onResizeStart(event, ${block.id}, 'block', 'bottom')"></div>
                     </div>`;
                 }
             });
@@ -670,8 +710,10 @@ const CalendarView = {
                               draggable="true" ondragstart="CalendarView.onDragStartEvent(event, ${e.id})"
                               ondragover="event.preventDefault()" ondrop="CalendarView.onDropGrid(event, '${DateUtils.toISODate(this.currentDate)}')"
                               onclick="event.stopPropagation(); CalendarView.showEventDetail(${e.id})">
+                    <div class="resize-handle resize-handle-top" onmousedown="event.stopPropagation(); CalendarView.onResizeStart(event, ${e.id}, 'event', 'top')"></div>
                     <div class="ev-title">${e.excluded_from_schedule ? '<i data-lucide="eye-off" class="w-3 h-3 inline-block mr-0.5 align-text-bottom opacity-50"></i>' : ''}${escapeHtml(e.title)}</div>
                     <div class="ev-time">${DateUtils.formatTime(s)} – ${DateUtils.formatTime(en)}${calLabel}</div>
+                    <div class="resize-handle resize-handle-bottom" onmousedown="event.stopPropagation(); CalendarView.onResizeStart(event, ${e.id}, 'event', 'bottom')"></div>
                 </div>`;
             } else {
                 const block = item.data;
@@ -686,9 +728,11 @@ const CalendarView = {
                               draggable="true" ondragstart="CalendarView.onDragStartBlock(event, ${block.id})"
                               ondragover="event.preventDefault()" ondrop="CalendarView.onDropGrid(event, '${DateUtils.toISODate(this.currentDate)}')"
                               onclick="event.stopPropagation(); CalendarView.showBlockDetail(${block.id})">
+                    <div class="resize-handle resize-handle-top" onmousedown="event.stopPropagation(); CalendarView.onResizeStart(event, ${block.id}, 'block', 'top')"></div>
                     ${pinIcon}
                     <div class="ev-title">${block.is_completed ? '<i data-lucide="check-circle" class="w-3 h-3 inline-block mr-0.5 align-text-bottom"></i>' : '<i data-lucide="timer" class="w-3 h-3 inline-block mr-0.5 align-text-bottom"></i>'}${escapeHtml(block.task_title || 'Task')}</div>
                     <div class="ev-time">${timeLabel}</div>
+                    <div class="resize-handle resize-handle-bottom" onmousedown="event.stopPropagation(); CalendarView.onResizeStart(event, ${block.id}, 'block', 'bottom')"></div>
                 </div>`;
             }
         });
@@ -699,17 +743,30 @@ const CalendarView = {
     },
 
     // ── Drag and Drop Handlers ──────────────────────────────────────────
+    _dragDurationMins: 60,
+    _dragClickOffsetY: 0, // Y offset of click within the dragged element
 
     onDragStartEvent(event, eventId) {
         console.log('[DnD] dragstart event', eventId);
         event.stopPropagation();
         event.dataTransfer.setData('text/plain', JSON.stringify({ type: 'event', id: eventId }));
         event.dataTransfer.effectAllowed = 'move';
+
+        // Store duration and click offset for preview
+        const ev = this.events.find(e => e.id === eventId);
+        if (ev) {
+            this._dragDurationMins = (new Date(ev.end_time) - new Date(ev.start_time)) / 60000;
+        }
+
         const el = event.currentTarget;
+        const elRect = el.getBoundingClientRect();
+        this._dragClickOffsetY = event.clientY - elRect.top;
         setTimeout(() => el.classList.add('drag-source'), 0);
         el.addEventListener('dragend', () => {
             console.log('[DnD] dragend event', eventId);
             el.classList.remove('drag-source');
+            this._removeDropPreview();
+            this._stopDragScroll();
         }, { once: true });
     },
 
@@ -717,18 +774,43 @@ const CalendarView = {
         console.log('[DnD] dragstart task', taskId);
         event.dataTransfer.setData('text/plain', JSON.stringify({ type: 'task', id: taskId }));
         event.dataTransfer.effectAllowed = 'copyMove';
+
+        // Store duration for preview
+        const task = this.tasks.find(t => t.id === taskId);
+        if (task) {
+            let dur = 60;
+            if (task.estimated_duration && task.time_scheduled != null) {
+                const remaining = task.estimated_duration - task.time_scheduled;
+                if (remaining > 0) dur = remaining;
+            }
+            if (task.max_block_size && dur > task.max_block_size) dur = task.max_block_size;
+            if (dur > 120) dur = 120;
+            this._dragDurationMins = dur;
+        }
+        // Tasks from the tray: default offset to center
+        this._dragClickOffsetY = (this._dragDurationMins / 60) * HOUR_PX / 2;
     },
 
     onDragStartBlock(event, blockId) {
         console.log('[DnD] dragstart block', blockId);
-        event.stopPropagation(); // Don't trigger parent column's click
+        event.stopPropagation();
         event.dataTransfer.setData('text/plain', JSON.stringify({ type: 'block', id: blockId }));
         event.dataTransfer.effectAllowed = 'move';
+
+        const block = this.blocks.find(b => b.id === blockId);
+        if (block) {
+            this._dragDurationMins = (new Date(block.end_time) - new Date(block.start_time)) / 60000;
+        }
+
         const el = event.currentTarget;
+        const elRect = el.getBoundingClientRect();
+        this._dragClickOffsetY = event.clientY - elRect.top;
         setTimeout(() => el.classList.add('drag-source'), 0);
         el.addEventListener('dragend', () => {
             console.log('[DnD] dragend block', blockId);
             el.classList.remove('drag-source');
+            this._removeDropPreview();
+            this._stopDragScroll();
         }, { once: true });
     },
 
@@ -737,15 +819,122 @@ const CalendarView = {
         event.currentTarget.classList.add('drag-over');
     },
 
+    _dragScrollRAF: null,
+
+    _startDragScroll(scrollEl, speed) {
+        this._stopDragScroll();
+        const tick = () => {
+            const maxScroll = scrollEl.scrollHeight - scrollEl.clientHeight;
+            const newScroll = scrollEl.scrollTop + speed;
+            scrollEl.scrollTop = Math.max(0, Math.min(newScroll, maxScroll));
+            // Stop if we've hit the bounds
+            if ((speed > 0 && scrollEl.scrollTop >= maxScroll) ||
+                (speed < 0 && scrollEl.scrollTop <= 0)) {
+                this._stopDragScroll();
+                return;
+            }
+            this._dragScrollRAF = requestAnimationFrame(tick);
+        };
+        this._dragScrollRAF = requestAnimationFrame(tick);
+    },
+
+    _stopDragScroll() {
+        if (this._dragScrollRAF) {
+            cancelAnimationFrame(this._dragScrollRAF);
+            this._dragScrollRAF = null;
+        }
+    },
+
     onDragOverGrid(event) {
         event.preventDefault();
         event.dataTransfer.dropEffect = 'move';
+
+        // Auto-scroll when cursor is near the edges of the scroll container
+        const scrollEl = document.getElementById('time-grid-scroll');
+        if (scrollEl) {
+            const rect = scrollEl.getBoundingClientRect();
+            const EDGE_ZONE = 80; // px from edge to trigger scrolling
+            const distFromTop = event.clientY - rect.top;
+            const distFromBottom = rect.bottom - event.clientY;
+            const maxScroll = scrollEl.scrollHeight - scrollEl.clientHeight;
+
+            if (distFromTop < EDGE_ZONE && distFromTop > 0 && scrollEl.scrollTop > 0) {
+                // Scroll up — faster the closer to edge
+                const intensity = 1 - (distFromTop / EDGE_ZONE);
+                const speed = -(2 + intensity * 16);
+                this._startDragScroll(scrollEl, speed);
+            } else if (distFromBottom < EDGE_ZONE && distFromBottom > 0 && scrollEl.scrollTop < maxScroll) {
+                // Scroll down — faster the closer to edge
+                const intensity = 1 - (distFromBottom / EDGE_ZONE);
+                const speed = 2 + intensity * 16;
+                this._startDragScroll(scrollEl, speed);
+            } else {
+                this._stopDragScroll();
+            }
+        }
+
+        // Show drop zone preview
+        let col = event.currentTarget;
+        if (!col.classList.contains('time-grid-col')) {
+            col = col.closest('.time-grid-col');
+        }
+        if (!col) return;
+
+        const scrollEl2 = scrollEl || document.getElementById('time-grid-scroll');
+        const scrollTop = scrollEl2 ? scrollEl2.scrollTop : 0;
+        const refRect = scrollEl2 ? scrollEl2.getBoundingClientRect() : col.getBoundingClientRect();
+        const y = (event.clientY - refRect.top) + scrollTop;
+
+        // Offset by the click position within the original element
+        const centeredY = Math.max(0, y - this._dragClickOffsetY);
+
+        // Snap to 5-minute intervals
+        const hours = Math.max(0, Math.min(centeredY / HOUR_PX, 23.75));
+        let h = Math.floor(hours);
+        let m = Math.round((hours - h) * 60 / 5) * 5;
+        if (m >= 60) { h += 1; m = 0; }
+
+        const gridHeight = 24 * HOUR_PX;
+        const previewHeight = Math.max((this._dragDurationMins / 60) * HOUR_PX, 18);
+        // Clamp so preview doesn't extend past the grid bottom
+        const snapY = Math.min((h + m / 60) * HOUR_PX, gridHeight - previewHeight);
+
+        // Format time labels
+        const endTotalMins = h * 60 + m + this._dragDurationMins;
+        const endH = Math.floor(endTotalMins / 60);
+        const endM = endTotalMins % 60;
+        const fmt = (hr, mn) => {
+            const ampm = hr >= 12 ? 'PM' : 'AM';
+            const h12 = hr % 12 || 12;
+            return `${h12}:${String(mn).padStart(2, '0')} ${ampm}`;
+        };
+        const timeLabel = `${fmt(h, m)} – ${fmt(endH, endM)}`;
+
+        // Create or update preview element
+        let preview = col.querySelector('.drop-zone-preview');
+        if (!preview) {
+            preview = document.createElement('div');
+            preview.className = 'drop-zone-preview';
+            preview.innerHTML = '<span class="drop-time-label"></span>';
+            col.appendChild(preview);
+        }
+        preview.style.top = snapY + 'px';
+        preview.style.height = previewHeight + 'px';
+        preview.querySelector('.drop-time-label').textContent = timeLabel;
     },
 
     onDragLeaveGrid(event) {
         if (!event.currentTarget.contains(event.relatedTarget)) {
             event.currentTarget.classList.remove('drag-over');
+            this._removeDropPreview(event.currentTarget);
+            this._stopDragScroll();
         }
+    },
+
+    _removeDropPreview(container) {
+        const scope = container || document;
+        scope.querySelectorAll('.drop-zone-preview').forEach(el => el.remove());
+        this._stopDragScroll();
     },
 
     async onDropGrid(event, dateStr) {
@@ -753,8 +942,9 @@ const CalendarView = {
         event.stopPropagation();
         console.log('[DnD] drop on', dateStr);
 
-        // Clean up any drag-over highlights
+        // Clean up any drag-over highlights and preview
         document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+        this._removeDropPreview();
 
         // Find the time-grid-col (event may have fired on a child element)
         let col = event.currentTarget;
@@ -775,10 +965,13 @@ const CalendarView = {
             y = event.clientY - rect.top;
         }
 
-        // Snap to 15-minute intervals
+        // Offset by the click position within the original element
+        y = Math.max(0, y - this._dragClickOffsetY);
+
+        // Snap to 5-minute intervals
         const hours = Math.max(0, Math.min(y / HOUR_PX, 23.75));
         const h = Math.floor(hours);
-        let m = Math.round((hours - h) * 60 / 15) * 15;
+        let m = Math.round((hours - h) * 60 / 5) * 5;
         let exactH = h;
         let exactM = m;
         if (exactM >= 60) { exactH += 1; exactM = 0; }
@@ -862,6 +1055,138 @@ const CalendarView = {
     },
 
 
+    // ── Resize Handlers ─────────────────────────────────────────────────
+    _resizeState: null,
+
+    onResizeStart(e, id, type, edge) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const el = e.target.closest('.time-event');
+        if (!el) return;
+
+        // Find the item data
+        let item;
+        if (type === 'event') {
+            item = this.events.find(ev => ev.id === id);
+        } else {
+            item = this.blocks.find(b => b.id === id);
+        }
+        if (!item) return;
+
+        const scrollEl = document.getElementById('time-grid-scroll');
+        const gridRect = el.parentElement.getBoundingClientRect();
+
+        this._resizeState = {
+            id, type, edge, el,
+            startY: e.clientY,
+            origTop: parseFloat(el.style.top),
+            origHeight: parseFloat(el.style.height),
+            startTime: new Date(item.start_time),
+            endTime: new Date(item.end_time),
+            gridTop: gridRect.top + (scrollEl ? scrollEl.scrollTop : 0),
+            scrollEl,
+        };
+
+        el.classList.add('resizing');
+        el.setAttribute('draggable', 'false');
+        document.body.classList.add('resizing');
+
+        this._boundResizeMove = this._onResizeMove.bind(this);
+        this._boundResizeEnd = this._onResizeEnd.bind(this);
+        document.addEventListener('mousemove', this._boundResizeMove);
+        document.addEventListener('mouseup', this._boundResizeEnd);
+    },
+
+    _onResizeMove(e) {
+        const s = this._resizeState;
+        if (!s) return;
+
+        const deltaY = e.clientY - s.startY;
+        const SNAP_PX = (5 / 60) * HOUR_PX; // 5 minutes in pixels
+
+        if (s.edge === 'bottom') {
+            let newHeight = s.origHeight + deltaY;
+            newHeight = Math.max(newHeight, SNAP_PX); // min 5 minutes
+            newHeight = Math.round(newHeight / SNAP_PX) * SNAP_PX;
+            s.el.style.height = newHeight + 'px';
+        } else {
+            let newTop = s.origTop + deltaY;
+            let newHeight = s.origHeight - deltaY;
+            // Snap top
+            newTop = Math.round(newTop / SNAP_PX) * SNAP_PX;
+            newHeight = s.origTop + s.origHeight - newTop;
+            newHeight = Math.max(newHeight, SNAP_PX);
+            newTop = s.origTop + s.origHeight - newHeight;
+            s.el.style.top = newTop + 'px';
+            s.el.style.height = newHeight + 'px';
+        }
+    },
+
+    async _onResizeEnd(e) {
+        document.removeEventListener('mousemove', this._boundResizeMove);
+        document.removeEventListener('mouseup', this._boundResizeEnd);
+        document.body.classList.remove('resizing');
+
+        // Mark resize end time to suppress the click event that follows mouseup
+        this._resizeEndTime = Date.now();
+
+        const s = this._resizeState;
+        if (!s) return;
+
+        s.el.classList.remove('resizing');
+        s.el.setAttribute('draggable', 'true');
+
+        // Calculate new times from pixel positions
+        const finalTop = parseFloat(s.el.style.top);
+        const finalHeight = parseFloat(s.el.style.height);
+
+        const startHourFloat = finalTop / HOUR_PX;
+        const endHourFloat = (finalTop + finalHeight) / HOUR_PX;
+
+        // Snap to 5-min increments
+        const snapMins = (h) => Math.round((h * 60) / 5) * 5;
+        const startMins = snapMins(startHourFloat);
+        const endMins = snapMins(endHourFloat);
+
+        if (endMins <= startMins) {
+            this._resizeState = null;
+            await this.render(true);
+            return;
+        }
+
+        // Build new Date objects using the original date
+        const baseDate = new Date(s.startTime);
+        baseDate.setHours(0, 0, 0, 0);
+        const newStart = new Date(baseDate.getTime() + startMins * 60000);
+        const newEnd = new Date(baseDate.getTime() + endMins * 60000);
+
+        this._resizeState = null;
+
+        try {
+            if (s.type === 'block') {
+                await API.updateScheduledBlock(s.id, {
+                    start_time: DateUtils.toISODateTime(newStart),
+                    end_time: DateUtils.toISODateTime(newEnd),
+                });
+                showToast('Block resized!', 'success');
+            } else {
+                const ev = this.events.find(ev => ev.id === s.id);
+                await API.updateEvent(s.id, {
+                    start_time: DateUtils.toISODateTime(newStart),
+                    end_time: DateUtils.toISODateTime(newEnd),
+                });
+                const label = ev && ev.source === 'Outlook' ? 'Event resized & synced to Outlook!' : 'Event resized!';
+                showToast(label, 'success');
+            }
+            await this.render(true);
+        } catch (err) {
+            console.error('[Resize] Error:', err);
+            showToast('Failed to resize: ' + err.message, 'error');
+            await this.render(true);
+        }
+    },
+
     // ── Event helpers ───────────────────────────────────────────────────
     getEventsForDate(date) {
         const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
@@ -931,6 +1256,8 @@ const CalendarView = {
 
     // ── Scheduled Block Detail Modal ────────────────────────────────────
     showBlockDetail(id) {
+        // Suppress click that fires after a resize
+        if (this._resizeEndTime && Date.now() - this._resizeEndTime < 300) return;
         const block = this.blocks.find(b => b.id === id);
         if (!block) return;
 
@@ -1490,6 +1817,8 @@ const CalendarView = {
 
     // ── Event Detail Modal ──────────────────────────────────────────────
     showEventDetail(id) {
+        // Suppress click that fires after a resize
+        if (this._resizeEndTime && Date.now() - this._resizeEndTime < 300) return;
         const ev = this.events.find(e => e.id === id);
         if (!ev) return;
 

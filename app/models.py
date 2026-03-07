@@ -15,6 +15,7 @@ class Task(db.Model):
     max_block_size = db.Column(db.Integer, nullable=True)  # minutes
     recurrence_rule = db.Column(db.String(50), nullable=True)  # daily, weekly, monthly, etc.
     recurrence_until = db.Column(db.DateTime, nullable=True)
+    description = db.Column(db.Text, nullable=True)
     parent_task_id = db.Column(db.Integer, db.ForeignKey('tasks.id'), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.now)
 
@@ -57,6 +58,7 @@ class Task(db.Model):
             'min_block_size': self.min_block_size,
             'max_block_size': self.max_block_size,
             'recurrence_rule': self.recurrence_rule,
+            'description': self.description,
             'parent_task_id': self.parent_task_id,
             'recurrence_until': self.recurrence_until.isoformat() if self.recurrence_until else None,
             'created_at': self.created_at.isoformat(),

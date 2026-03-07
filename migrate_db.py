@@ -25,6 +25,12 @@ if os.path.exists(db_path):
     except sqlite3.OperationalError as e:
         print(f"Column parent_task_id: {e}")
 
+    try:
+        cursor.execute("ALTER TABLE tasks ADD COLUMN description TEXT")
+        print("Added description column")
+    except sqlite3.OperationalError as e:
+        print(f"Column description: {e}")
+
     conn.commit()
     conn.close()
     print("Migration complete.")

@@ -1,11 +1,27 @@
 const TaskView = {
     container: null,
+    _searchQuery: '',
+    _hideCompleted: false,
 
     async render() {
         this.container = document.getElementById('view-tasks');
         try {
             const tasks = await API.getTasks();
-            const grouped = this.groupByPriority(tasks);
+            const now = new Date();
+            // Apply search and status filters
+            let filtered = tasks;
+            if (this._searchQuery) {
+                const q = this._searchQuery.toLowerCase();
+                filtered = filtered.filter(t => t.title.toLowerCase().includes(q));
+            }
+            if (this._hideCompleted) {
+                filtered = filtered.filter(t => t.status !== 'Completed');
+            }
+            // Separate overdue (non-completed, past due_date)
+            const overdue = filtered.filter(t => t.status !== 'Completed' && t.due_date && new Date(t.due_date) < now);
+            const rest = filtered.filter(t => !overdue.includes(t));
+            const grouped = this.groupByPriority(rest);
+            this._isRendering = true;
             this.container.innerHTML = `
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
                     <h2 class="text-2xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-400 tracking-tight">Priority Tasks</h2>
@@ -15,13 +31,67 @@ const TaskView = {
                         <span>Add Task</span>
                     </button>
                 </div>
+                ${this.renderSearchFilter()}
+                ${overdue.length > 0 ? this.renderOverdueSection(overdue) : ''}
                 ${this.renderGroup('High', grouped.High, 'red')}
                 ${this.renderGroup('Medium', grouped.Medium, 'yellow')}
                 ${this.renderGroup('Low', grouped.Low, 'green')}
             `;
             lucide.createIcons();
+            this._attachSearchListeners();
+            this._isRendering = false;
         } catch (err) {
             this.container.innerHTML = `<p class="text-red-500">Failed to load tasks: ${err.message}</p>`;
+        }
+    },
+
+    renderSearchFilter() {
+        return `
+            <div class="flex items-center gap-3 mb-6">
+                <div class="flex-1 relative">
+                    <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 pointer-events-none"></i>
+                    <input type="text" id="task-search-input" placeholder="Search tasks..."
+                           value="${escapeAttr(this._searchQuery)}"
+                           class="w-full pl-10 pr-4 py-2.5 border border-gray-200 dark:border-darkborder rounded-xl text-sm bg-white dark:bg-darkpanel text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-shadow placeholder-gray-400 dark:placeholder-gray-500">
+                </div>
+                <button id="task-hide-completed-btn"
+                        class="px-3 py-2.5 text-xs font-semibold rounded-xl border transition-all whitespace-nowrap ${this._hideCompleted
+                            ? 'bg-brand-50 text-brand-600 border-brand-200 dark:bg-brand-500/10 dark:text-brand-400 dark:border-brand-500/20'
+                            : 'bg-white dark:bg-darkpanel text-gray-500 dark:text-gray-400 border-gray-200 dark:border-darkborder hover:bg-gray-50 dark:hover:bg-gray-800'}">
+                    ${this._hideCompleted ? '✓ Hiding Completed' : 'Hide Completed'}
+                </button>
+            </div>
+        `;
+    },
+
+    _searchFocused: false,
+    _isRendering: false,
+
+    _attachSearchListeners() {
+        const searchInput = document.getElementById('task-search-input');
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                this._searchQuery = e.target.value;
+                this._searchFocused = true;
+                this.render();
+            });
+            searchInput.addEventListener('focus', () => { this._searchFocused = true; });
+            searchInput.addEventListener('blur', () => {
+                // Ignore blur caused by DOM replacement during render
+                if (!this._isRendering) this._searchFocused = false;
+            });
+            // Re-focus after re-render if the user was typing
+            if (this._searchFocused) {
+                searchInput.focus();
+                searchInput.selectionStart = searchInput.selectionEnd = searchInput.value.length;
+            }
+        }
+        const hideBtn = document.getElementById('task-hide-completed-btn');
+        if (hideBtn) {
+            hideBtn.addEventListener('click', () => {
+                this._hideCompleted = !this._hideCompleted;
+                this.render();
+            });
         }
     },
 
@@ -31,6 +101,23 @@ const TaskView = {
             Medium: tasks.filter(t => t.priority === 'Medium'),
             Low: tasks.filter(t => t.priority === 'Low'),
         };
+    },
+
+    renderOverdueSection(tasks) {
+        return `
+            <div class="mb-8">
+                <div class="flex items-center gap-3 mb-4 pl-1">
+                    <div class="w-1.5 h-6 rounded-full bg-red-600 animate-pulse"></div>
+                    <h3 class="text-lg font-bold text-red-600 dark:text-red-400 tracking-tight flex items-center gap-2">
+                        <i data-lucide="alert-triangle" class="w-5 h-5"></i>Overdue
+                    </h3>
+                    <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-red-50 text-red-600 border border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20 shadow-sm">${tasks.length}</span>
+                </div>
+                <div class="space-y-3">
+                    ${tasks.map(t => this.renderTask(t)).join('')}
+                </div>
+            </div>
+        `;
     },
 
     renderGroup(label, tasks, color) {
@@ -118,6 +205,12 @@ const TaskView = {
             : '';
         const schedIcon = getScheduleStatusIcon(task);
 
+        // Overdue badge
+        const isOverdue = !isCompleted && task.due_date && new Date(task.due_date) < new Date();
+        const overdueBadge = isOverdue
+            ? '<span class="text-[11px] font-bold px-2 py-0.5 rounded-md bg-red-50 text-red-600 border border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20 flex items-center gap-1"><i data-lucide="alert-triangle" class="w-3 h-3"></i>Overdue</span>'
+            : '';
+
         return `
             <div class="flex items-start sm:items-center justify-between bg-white dark:bg-darkpanel rounded-xl px-4 py-3.5 shadow-sm border border-gray-100 dark:border-darkborder hover:shadow-md hover:border-gray-200 dark:hover:border-gray-700 transition-all duration-200 group relative overflow-hidden ${isCompleted ? 'opacity-75' : ''}">
                 ${isCompleted ? '<div class="absolute inset-0 bg-gray-50/50 dark:bg-darkbg/20 z-0 pointer-events-none"></div>' : ''}
@@ -131,9 +224,11 @@ const TaskView = {
                             ${dueLabel}
                             ${estLabel}
                             ${schedIcon}
+                            ${overdueBadge}
                             ${statusBadge}
                         </div>
                         ${this.renderTimeTracking(task)}
+                        ${task.description ? `<div class="mt-2 pt-2 border-t border-gray-100 dark:border-darkborder/50">${renderMarkdown(task.description)}</div>` : ''}
                     </div>
                 </div>
                 <div class="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-4 relative z-10">
@@ -186,6 +281,11 @@ const TaskView = {
                         <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Title</label>
                         <input type="text" name="title" required
                                class="w-full px-4 py-2.5 border border-gray-300 dark:border-darkborder rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 text-sm bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 transition-shadow">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Description <span class="text-gray-400 font-normal">(supports markdown)</span></label>
+                        <textarea name="description" rows="3" placeholder="Add notes, links, or details..."
+                                  class="w-full px-4 py-2.5 border border-gray-300 dark:border-darkborder rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 text-sm bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 transition-shadow resize-y"></textarea>
                     </div>
                     <div class="grid grid-cols-2 gap-4">
                         <div>
@@ -270,6 +370,7 @@ const TaskView = {
             const data = {
                 title: form.title.value,
                 priority: form.priority.value,
+                description: form.description.value || null,
             };
             if (form.due_date.value) {
                 const timeVal = form.due_time.value || '00:00';

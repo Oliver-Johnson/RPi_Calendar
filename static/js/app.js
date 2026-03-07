@@ -44,7 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
     lucide.createIcons();
 
     // ── View routing ────────────────────────────────────────────────────
-    const views = { tasks: 'view-tasks', calendar: 'view-calendar' };
+    const views = { tasks: 'view-tasks', calendar: 'view-calendar', insights: 'view-insights' };
     let currentView = 'tasks';
 
     function switchView(view) {
@@ -60,6 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
         currentView = view;
         if (view === 'tasks') TaskView.render();
         if (view === 'calendar') CalendarView.render();
+        if (view === 'insights') InsightsView.render();
         closeSidebar();
     }
 
@@ -209,6 +210,18 @@ document.addEventListener('DOMContentLoaded', () => {
     // ── Init ─────────────────────────────────────────────────────────────
     loadCalendarList();
     switchView('calendar');
+
+    // ── Overdue task warning on page load ─────────────────────────────────
+    (async () => {
+        try {
+            const tasks = await API.getTasks();
+            const now = new Date();
+            const overdue = tasks.filter(t => t.status !== 'Completed' && t.due_date && new Date(t.due_date) < now);
+            if (overdue.length > 0) {
+                showToast(`⚠ You have ${overdue.length} overdue task${overdue.length > 1 ? 's' : ''}!`, 'error');
+            }
+        } catch (e) { /* silently fail */ }
+    })();
 });
 
 // ── Shared Helpers ──────────────────────────────────────────────────────────
@@ -240,6 +253,37 @@ function getScheduleStatusIcon(task) {
         partially_scheduled: '<i data-lucide="calendar-clock" class="w-3 h-3 inline-block align-text-bottom text-amber-500" title="Partially scheduled"></i>',
     };
     return icons[task.scheduling_status] || '<i data-lucide="calendar-x" class="w-3 h-3 inline-block align-text-bottom text-red-400" title="Not scheduled"></i>';
+}
+
+// ── Lightweight Markdown Renderer ────────────────────────────────────────────
+function renderMarkdown(text) {
+    if (!text) return '';
+    // Escape HTML first
+    let html = escapeHtml(text);
+    // Headers (must be at start of line)
+    html = html.replace(/^### (.+)$/gm, '<h4 class="font-bold text-sm text-gray-800 dark:text-gray-200 mt-3 mb-1">$1</h4>');
+    html = html.replace(/^## (.+)$/gm, '<h3 class="font-bold text-base text-gray-800 dark:text-gray-200 mt-3 mb-1">$1</h3>');
+    html = html.replace(/^# (.+)$/gm, '<h2 class="font-bold text-lg text-gray-800 dark:text-gray-200 mt-3 mb-1">$1</h2>');
+    // Bold + italic
+    html = html.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+    // Inline code
+    html = html.replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 rounded text-xs font-mono">$1</code>');
+    // Links [text](url)
+    html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" class="text-brand-600 dark:text-brand-400 underline hover:no-underline">$1</a>');
+    // Unordered lists
+    html = html.replace(/^[\-\*] (.+)$/gm, '<li class="ml-4 list-disc text-sm">$1</li>');
+    // Ordered lists
+    html = html.replace(/^\d+\. (.+)$/gm, '<li class="ml-4 list-decimal text-sm">$1</li>');
+    // Wrap consecutive <li> in <ul>/<ol>
+    html = html.replace(/((?:<li class="ml-4 list-disc[^"]*">[^<]+<\/li>\n?)+)/g, '<ul class="space-y-1 my-2">$1</ul>');
+    html = html.replace(/((?:<li class="ml-4 list-decimal[^"]*">[^<]+<\/li>\n?)+)/g, '<ol class="space-y-1 my-2">$1</ol>');
+    // Paragraphs (double newline)
+    html = html.replace(/\n\n/g, '</p><p class="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">');
+    // Single newlines to <br>
+    html = html.replace(/\n/g, '<br>');
+    return '<p class="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">' + html + '</p>';
 }
 
 // ── Loading button helper ───────────────────────────────────────────────────
@@ -274,6 +318,11 @@ function showEditTaskModal(task, onSaved) {
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Title</label>
                     <input type="text" name="title" value="${escapeAttr(task.title)}" required
                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description <span class="text-gray-400 font-normal">(markdown)</span></label>
+                    <textarea name="description" rows="3" placeholder="Add notes, links, or details..."
+                              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 resize-y">${task.description ? escapeHtml(task.description) : ''}</textarea>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
@@ -374,6 +423,7 @@ function showEditTaskModal(task, onSaved) {
             title: form.title.value,
             priority: form.priority.value,
             status: form.status.value,
+            description: form.description.value || null,
             due_date: form.due_date.value ? form.due_date.value + 'T' + dueTimeVal + ':00' : null,
             estimated_duration: totalMins > 0 ? totalMins : null,
             min_block_size: minB > 0 ? minB : null,

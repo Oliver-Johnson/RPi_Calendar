@@ -86,6 +86,7 @@ def create_task():
         max_block_size=max_block,
         recurrence_rule=recurrence_rule,
         recurrence_until=recurrence_until,
+        description=data.get('description', '').strip() or None,
     )
     db.session.add(task)
     db.session.commit()
@@ -231,6 +232,9 @@ def update_task(task_id):
                 task.recurrence_until = datetime.fromisoformat(data['recurrence_until'])
             except ValueError:
                 return jsonify({'error': 'Invalid recurrence_until format'}), 400
+
+    if 'description' in data:
+        task.description = data['description'].strip() if data['description'] else None
 
     db.session.commit()
     result = task.to_dict()
