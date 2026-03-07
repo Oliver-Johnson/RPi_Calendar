@@ -489,8 +489,10 @@ function showToast(message, type = 'info') {
 
 // ── Modal helpers ───────────────────────────────────────────────────────────
 window.modalTimeout = null;
+window.modalOnCancel = null;
 
-function showModal(html) {
+function showModal(html, onCancel = null) {
+    window.modalOnCancel = onCancel;
     const bd = document.getElementById('modal-backdrop');
     const mc = document.getElementById('modal-content');
     
@@ -509,7 +511,12 @@ function showModal(html) {
     });
 }
 
-function closeModal() {
+function closeModal(callCancel = true) {
+    if (callCancel && window.modalOnCancel) {
+        window.modalOnCancel();
+    }
+    window.modalOnCancel = null;
+
     const bd = document.getElementById('modal-backdrop');
     const mc = document.getElementById('modal-content');
     bd.classList.remove('opacity-100');
@@ -523,7 +530,7 @@ function closeModal() {
     }, 300);
 }
 
-function showConfirm(message, onConfirm, { destructive = true, confirmText = 'Delete', icon = 'alert-triangle' } = {}) {
+function showConfirm(message, onConfirm, { destructive = true, confirmText = 'Delete', icon = 'alert-triangle', onCancel = null } = {}) {
     const btnClass = destructive
         ? 'bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white shadow-md shadow-red-500/20'
         : 'bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white shadow-md shadow-brand-500/20';
@@ -546,9 +553,9 @@ function showConfirm(message, onConfirm, { destructive = true, confirmText = 'De
                 </button>
             </div>
         </div>
-    `);
+    `, onCancel);
     document.getElementById('confirm-action-btn').addEventListener('click', () => {
-        closeModal();
+        closeModal(false); // Don't trigger onCancel if confirming
         onConfirm();
     });
     lucide.createIcons();
@@ -558,8 +565,141 @@ document.getElementById('modal-backdrop').addEventListener('click', (e) => {
     if (e.target === e.currentTarget) closeModal();
 });
 
+// ── Undo Toast ──────────────────────────────────────────────────────────────
+function showUndoToast(message, undoCallback) {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = 'flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-lg text-white text-sm font-medium pointer-events-auto transition-all duration-300 opacity-0 translate-y-4 scale-95 origin-bottom bg-gray-900/95 dark:bg-darkpanel/95 backdrop-blur-md border border-gray-700/50 shadow-black/20';
+    
+    const undoId = 'undo-' + Date.now();
+    toast.innerHTML = `
+        <i data-lucide="check-circle" class="w-4 h-4 shrink-0 text-emerald-400"></i>
+        <span>${escapeHtml(message)}</span>
+        <button id="${undoId}" class="undo-btn">Undo</button>
+    `;
+    container.appendChild(toast);
+    lucide.createIcons();
+
+    requestAnimationFrame(() => {
+        toast.classList.remove('opacity-0', 'translate-y-4', 'scale-95');
+    });
+
+    let undone = false;
+    document.getElementById(undoId).addEventListener('click', async () => {
+        if (undone) return;
+        undone = true;
+        try {
+            await undoCallback();
+            toast.classList.add('opacity-0', 'translate-y-2');
+            setTimeout(() => toast.remove(), 300);
+            showToast('Undone!', 'info');
+        } catch (err) {
+            showToast('Undo failed: ' + err.message, 'error');
+        }
+    });
+
+    // Auto-remove after 5s
+    setTimeout(() => {
+        if (!undone) {
+            toast.classList.add('opacity-0', 'translate-y-2');
+            setTimeout(() => toast.remove(), 300);
+        }
+    }, 5000);
+
+    while (container.children.length > 5) {
+        container.removeChild(container.firstChild);
+    }
+}
+
+// ── Keyboard Shortcuts ──────────────────────────────────────────────────────
+function showShortcutsOverlay() {
+    const existing = document.querySelector('.shortcuts-overlay');
+    if (existing) { existing.remove(); return; }
+
+    const overlay = document.createElement('div');
+    overlay.className = 'shortcuts-overlay';
+    overlay.innerHTML = `
+        <div class="shortcuts-card">
+            <div class="flex items-center justify-between mb-5">
+                <h2 class="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                    <i data-lucide="keyboard" class="w-5 h-5 text-brand-500"></i>
+                    Keyboard Shortcuts
+                </h2>
+                <button onclick="document.querySelector('.shortcuts-overlay').remove()" class="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-darkborder transition-colors">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+            <div class="space-y-1 text-sm text-gray-600 dark:text-gray-400">
+                <div class="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 pt-2 pb-1">Navigation</div>
+                <div class="shortcut-row"><span>Tasks view</span><div class="shortcut-keys"><kbd>1</kbd></div></div>
+                <div class="shortcut-row"><span>Calendar view</span><div class="shortcut-keys"><kbd>2</kbd></div></div>
+                <div class="shortcut-row"><span>Insights view</span><div class="shortcut-keys"><kbd>3</kbd></div></div>
+                <div class="shortcut-row"><span>Previous period</span><div class="shortcut-keys"><kbd>←</kbd></div></div>
+                <div class="shortcut-row"><span>Next period</span><div class="shortcut-keys"><kbd>→</kbd></div></div>
+                <div class="shortcut-row"><span>Go to today</span><div class="shortcut-keys"><kbd>T</kbd></div></div>
+                <div class="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 pt-3 pb-1">Actions</div>
+                <div class="shortcut-row"><span>New event</span><div class="shortcut-keys"><kbd>N</kbd></div></div>
+                <div class="shortcut-row"><span>Schedule time block</span><div class="shortcut-keys"><kbd>S</kbd></div></div>
+                <div class="shortcut-row"><span>Toggle dark mode</span><div class="shortcut-keys"><kbd>D</kbd></div></div>
+                <div class="shortcut-row"><span>Show shortcuts</span><div class="shortcut-keys"><kbd>?</kbd></div></div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+    lucide.createIcons();
+
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) overlay.remove();
+    });
+}
+
 document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && !document.getElementById('modal-backdrop').classList.contains('hidden')) {
-        closeModal();
+    // Escape: close modal or shortcuts overlay
+    if (e.key === 'Escape') {
+        const shortcutsOverlay = document.querySelector('.shortcuts-overlay');
+        if (shortcutsOverlay) { shortcutsOverlay.remove(); return; }
+        if (!document.getElementById('modal-backdrop').classList.contains('hidden')) {
+            closeModal(); return;
+        }
+        return;
+    }
+
+    // Skip shortcuts when typing in inputs or modal is open
+    const tag = document.activeElement?.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+    if (!document.getElementById('modal-backdrop').classList.contains('hidden')) return;
+
+    switch (e.key) {
+        case '1': e.preventDefault(); document.querySelector('[data-view="tasks"]')?.click(); break;
+        case '2': e.preventDefault(); document.querySelector('[data-view="calendar"]')?.click(); break;
+        case '3': e.preventDefault(); document.querySelector('[data-view="insights"]')?.click(); break;
+        case 'ArrowLeft':
+            e.preventDefault();
+            if (typeof CalendarView !== 'undefined' && CalendarView.navigate) CalendarView.navigate(-1);
+            break;
+        case 'ArrowRight':
+            e.preventDefault();
+            if (typeof CalendarView !== 'undefined' && CalendarView.navigate) CalendarView.navigate(1);
+            break;
+        case 't': case 'T':
+            e.preventDefault();
+            if (typeof CalendarView !== 'undefined' && CalendarView.goToday) CalendarView.goToday();
+            break;
+        case 'n': case 'N':
+            e.preventDefault();
+            if (typeof CalendarView !== 'undefined') CalendarView.showAddEventForm();
+            break;
+        case 's': case 'S':
+            e.preventDefault();
+            if (typeof CalendarView !== 'undefined') CalendarView.showScheduleTimeForm();
+            break;
+        case 'd': case 'D':
+            e.preventDefault();
+            toggleDarkMode();
+            break;
+        case '?':
+            e.preventDefault();
+            showShortcutsOverlay();
+            break;
     }
 });

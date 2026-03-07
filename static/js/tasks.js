@@ -216,7 +216,7 @@ const TaskView = {
                 ${isCompleted ? '<div class="absolute inset-0 bg-gray-50/50 dark:bg-darkbg/20 z-0 pointer-events-none"></div>' : ''}
                 <div class="flex items-start sm:items-center gap-4 flex-1 min-w-0 relative z-10">
                     <input type="checkbox" ${checked}
-                           onchange="TaskView.toggleStatus(${task.id}, this.checked)"
+                           onchange="TaskView.toggleStatus(${task.id}, this.checked, ${(task.block_count || 0) - (task.completed_count || 0)})"
                            class="mt-1 sm:mt-0 w-5 h-5 rounded-md border-gray-300 dark:border-gray-600 text-brand-600 focus:ring-brand-500 cursor-pointer shadow-sm transition-colors shrink-0">
                     <div class="flex flex-col min-w-0 flex-1">
                         <span class="text-[15px] font-semibold ${textStyle} truncate transition-all tracking-tight">${escapeHtml(task.title)}</span>
@@ -248,19 +248,36 @@ const TaskView = {
         `;
     },
 
-    async toggleStatus(id, completed) {
-        try {
-            const result = await API.updateTask(id, { status: completed ? 'Completed' : 'Pending' });
-            this.render();
-            if (completed) {
-                let msgs = ['Task completed!'];
-                if (result.cleaned_blocks > 0) msgs.push(`Removed ${result.cleaned_blocks} future block${result.cleaned_blocks > 1 ? 's' : ''}.`);
-                if (result.spawned_recurrence) msgs.push(`Spawned next recurring task.`);
-                showToast(msgs.join(' '), 'success');
+    async toggleStatus(id, completed, futureBlocks = 0) {
+        const doToggle = async () => {
+            try {
+                const result = await API.updateTask(id, { status: completed ? 'Completed' : 'Pending' });
+                this.render();
+                if (completed) {
+                    let msgs = ['Task completed!'];
+                    if (result.cleaned_blocks > 0) msgs.push(`Removed ${result.cleaned_blocks} future block${result.cleaned_blocks > 1 ? 's' : ''}.`);
+                    if (result.spawned_recurrence) msgs.push(`Spawned next recurring task.`);
+                    showToast(msgs.join(' '), 'success');
+                }
+            } catch (err) {
+                showToast('Failed to update task', 'error');
             }
-        } catch (err) {
-            showToast('Failed to update task', 'error');
+        };
+
+        if (completed && futureBlocks > 0) {
+            showConfirm(
+                `This will remove ${futureBlocks} future uncompleted block${futureBlocks > 1 ? 's' : ''} from the calendar.`,
+                doToggle,
+                { 
+                    destructive: false, 
+                    confirmText: 'Complete', 
+                    icon: 'check-circle',
+                    onCancel: () => this.render()
+                }
+            );
+            return;
         }
+        await doToggle();
     },
 
     async deleteTask(id) {

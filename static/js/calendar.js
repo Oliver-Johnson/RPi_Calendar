@@ -228,6 +228,49 @@ const CalendarView = {
         else if (this.mode === 'week') body.innerHTML = this.renderWeek();
         else body.innerHTML = this.renderDay();
         lucide.createIcons();
+        this._injectTimeIndicator();
+        this._startTimeIndicatorInterval();
+    },
+
+    _injectTimeIndicator() {
+        // Remove any existing indicators
+        document.querySelectorAll('.current-time-indicator').forEach(el => el.remove());
+
+        if (this.mode === 'month') return;
+
+        const now = new Date();
+        const today = new Date();
+        const cols = document.querySelectorAll('.time-grid-col');
+
+        cols.forEach((col, i) => {
+            // Determine the date for this column
+            let colDate;
+            if (this.mode === 'week') {
+                const startOfWeek = new Date(this.currentDate);
+                startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+                colDate = new Date(startOfWeek);
+                colDate.setDate(colDate.getDate() + i);
+            } else {
+                colDate = this.currentDate;
+            }
+
+            if (!DateUtils.isSameDay(colDate, today)) return;
+
+            const hourFloat = now.getHours() + now.getMinutes() / 60;
+            const topPx = hourFloat * HOUR_PX;
+            const indicator = document.createElement('div');
+            indicator.className = 'current-time-indicator';
+            indicator.style.top = topPx + 'px';
+            col.appendChild(indicator);
+        });
+    },
+
+    _timeIndicatorInterval: null,
+    _startTimeIndicatorInterval() {
+        if (this._timeIndicatorInterval) clearInterval(this._timeIndicatorInterval);
+        this._timeIndicatorInterval = setInterval(() => {
+            if (this.mode !== 'month') this._injectTimeIndicator();
+        }, 60000);
     },
 
     // ── Helpers ──────────────────────────────────────────────────────────
@@ -1000,7 +1043,7 @@ const CalendarView = {
 
                 const endDt = new Date(startDt.getTime() + durationMins * 60000);
                 console.log('[DnD] Creating block:', DateUtils.toISODateTime(startDt), '->', DateUtils.toISODateTime(endDt));
-                await API.createScheduledBlock({
+                const newBlock = await API.createScheduledBlock({
                     task_id: task.id,
                     start_time: DateUtils.toISODateTime(startDt),
                     end_time: DateUtils.toISODateTime(endDt),
@@ -1008,12 +1051,17 @@ const CalendarView = {
                 });
                 this._pendingScrollHour = exactH;
                 await this.render();
-                showToast('Task scheduled!', 'success');
+                showUndoToast('Task scheduled', async () => {
+                    await API.deleteScheduledBlock(newBlock.id);
+                    await this.render();
+                });
 
             } else if (data.type === 'block') {
                 const block = this.blocks.find(b => b.id === data.id);
                 if (!block) { console.warn('[DnD] Block not found:', data.id); return; }
 
+                const oldStartISO = block.start_time;
+                const oldEndISO = block.end_time;
                 const oldStart = new Date(block.start_time);
                 const oldEnd = new Date(block.end_time);
                 const durationMins = (oldEnd - oldStart) / 60000;
@@ -1027,12 +1075,17 @@ const CalendarView = {
                 });
                 this._pendingScrollHour = exactH;
                 await this.render();
-                showToast('Block moved!', 'success');
+                showUndoToast('Block moved', async () => {
+                    await API.updateScheduledBlock(block.id, { start_time: oldStartISO, end_time: oldEndISO });
+                    await this.render();
+                });
 
             } else if (data.type === 'event') {
                 const ev = this.events.find(e => e.id === data.id);
                 if (!ev) { console.warn('[DnD] Event not found:', data.id); return; }
 
+                const oldStartISO = ev.start_time;
+                const oldEndISO = ev.end_time;
                 const oldStart = new Date(ev.start_time);
                 const oldEnd = new Date(ev.end_time);
                 const durationMins = (oldEnd - oldStart) / 60000;
@@ -1045,8 +1098,11 @@ const CalendarView = {
                 });
                 this._pendingScrollHour = exactH;
                 await this.render();
-                const label = ev.source === 'Outlook' ? 'Event moved & synced to Outlook!' : 'Event moved!';
-                showToast(label, 'success');
+                const label = ev.source === 'Outlook' ? 'Event moved & synced' : 'Event moved';
+                showUndoToast(label, async () => {
+                    await API.updateEvent(ev.id, { start_time: oldStartISO, end_time: oldEndISO });
+                    await this.render();
+                });
             }
         } catch (err) {
             console.error('[DnD] Drop error:', err);
@@ -1164,20 +1220,27 @@ const CalendarView = {
         this._resizeState = null;
 
         try {
+            const oldStart = DateUtils.toISODateTime(s.startTime);
+            const oldEnd = DateUtils.toISODateTime(s.endTime);
             if (s.type === 'block') {
                 await API.updateScheduledBlock(s.id, {
                     start_time: DateUtils.toISODateTime(newStart),
                     end_time: DateUtils.toISODateTime(newEnd),
                 });
-                showToast('Block resized!', 'success');
+                showUndoToast('Block resized', async () => {
+                    await API.updateScheduledBlock(s.id, { start_time: oldStart, end_time: oldEnd });
+                    await this.render(true);
+                });
             } else {
                 const ev = this.events.find(ev => ev.id === s.id);
                 await API.updateEvent(s.id, {
                     start_time: DateUtils.toISODateTime(newStart),
                     end_time: DateUtils.toISODateTime(newEnd),
                 });
-                const label = ev && ev.source === 'Outlook' ? 'Event resized & synced to Outlook!' : 'Event resized!';
-                showToast(label, 'success');
+                showUndoToast(ev && ev.source === 'Outlook' ? 'Event resized & synced' : 'Event resized', async () => {
+                    await API.updateEvent(s.id, { start_time: oldStart, end_time: oldEnd });
+                    await this.render(true);
+                });
             }
             await this.render(true);
         } catch (err) {

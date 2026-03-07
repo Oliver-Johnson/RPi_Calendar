@@ -1,24 +1,79 @@
 // ── Insights / Analytics View ────────────────────────────────────────────────
 const InsightsView = {
     container: null,
+    _range: '30d', // default range
+
+    _getRangeDates() {
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        switch (this._range) {
+            case 'week': {
+                const start = new Date(today);
+                start.setDate(start.getDate() - start.getDay());
+                const end = new Date(start);
+                end.setDate(end.getDate() + 7);
+                return { start, end };
+            }
+            case 'month': {
+                const start = new Date(today.getFullYear(), today.getMonth(), 1);
+                const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+                return { start, end };
+            }
+            case '30d': {
+                return {
+                    start: new Date(Date.now() - 30 * 86400000),
+                    end: new Date(Date.now() + 7 * 86400000),
+                };
+            }
+            case 'all':
+            default:
+                return {
+                    start: new Date(2020, 0, 1),
+                    end: new Date(Date.now() + 365 * 86400000),
+                };
+        }
+    },
+
+    setRange(range) {
+        this._range = range;
+        this.render();
+    },
 
     async render() {
         this.container = document.getElementById('view-insights');
         try {
+            const { start, end } = this._getRangeDates();
             const [tasks, blocks] = await Promise.all([
                 API.getTasks(),
                 API.getScheduledBlocks(
-                    DateUtils.toISODate(new Date(Date.now() - 90 * 86400000)),
-                    DateUtils.toISODate(new Date(Date.now() + 30 * 86400000))
+                    DateUtils.toISODate(start),
+                    DateUtils.toISODate(end)
                 ),
             ]);
 
+            const presets = [
+                { key: 'week', label: 'This Week' },
+                { key: 'month', label: 'This Month' },
+                { key: '30d', label: 'Last 30 Days' },
+                { key: 'all', label: 'All Time' },
+            ];
+            const rangeButtons = presets.map(p => {
+                const active = this._range === p.key;
+                return `<button onclick="InsightsView.setRange('${p.key}')"
+                    class="px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all whitespace-nowrap
+                    ${active
+                        ? 'bg-brand-600 text-white border-brand-600 shadow-sm shadow-brand-500/20'
+                        : 'text-gray-500 dark:text-gray-400 border-gray-200 dark:border-darkborder hover:bg-gray-50 dark:hover:bg-darkborder/50'
+                    }">${p.label}</button>`;
+            }).join('');
+
             this.container.innerHTML = `
-                <div class="flex items-center gap-3 mb-8">
+                <div class="flex items-center justify-between gap-3 mb-8 flex-wrap">
                     <h2 class="text-2xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-400 tracking-tight flex items-center gap-3">
                         <i data-lucide="bar-chart-3" class="w-6 h-6 text-brand-500"></i>
                         Insights
                     </h2>
+                    <div class="flex gap-1.5">${rangeButtons}</div>
                 </div>
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     ${this.renderTimeByPriority(tasks, blocks)}
