@@ -2,6 +2,8 @@ import msal
 import requests
 import os
 import sys
+import logging
+
 from datetime import datetime, timedelta, timezone
 from app import db
 from app.models import Event, OutlookCalendar
@@ -9,9 +11,8 @@ from app.models import Event, OutlookCalendar
 GRAPH_API_ENDPOINT = 'https://graph.microsoft.com/v1.0'
 
 
-def log(msg):
-    """Debug logger that flushes immediately (unbuffered)."""
-    print(msg, file=sys.stderr, flush=True)
+logger = logging.getLogger(__name__)
+
 
 
 def get_msal_app():
@@ -27,7 +28,7 @@ def get_msal_app():
 def fetch_outlook_calendars(access_token):
     """Fetch all calendars from Microsoft Graph and upsert into local DB.
     Returns list of OutlookCalendar dicts."""
-    log('[SYNC] Fetching calendar list from Graph API...')
+    logger.info('[SYNC] Fetching calendar list from Graph API...')
 
     headers = {'Authorization': f'Bearer {access_token}'}
     response = requests.get(
@@ -38,7 +39,7 @@ def fetch_outlook_calendars(access_token):
             '$top': '100',
         },
     )
-    log(f'[SYNC] /me/calendars status: {response.status_code}')
+    logger.info(f'[SYNC] /me/calendars status: {response.status_code}')
 
     if response.status_code != 200:
         try:
@@ -48,7 +49,7 @@ def fetch_outlook_calendars(access_token):
         raise Exception(f'Failed to list calendars ({response.status_code}): {error_msg}')
 
     calendars_data = response.json().get('value', [])
-    log(f'[SYNC] Found {len(calendars_data)} calendars')
+    logger.info(f'[SYNC] Found {len(calendars_data)} calendars')
 
     results = []
     for cal in calendars_data:
@@ -75,13 +76,13 @@ def fetch_outlook_calendars(access_token):
             results.append(new_cal)
 
     db.session.commit()
-    log(f'[SYNC] Upserted {len(results)} calendars')
+    logger.info(f'[SYNC] Upserted {len(results)} calendars')
     return [c.to_dict() for c in results]
 
 
 def sync_outlook_events(access_token):
     """Fetch events from all enabled Outlook calendars and upsert into local DB."""
-    log('[SYNC] Starting multi-calendar sync...')
+    logger.info('[SYNC] Starting multi-calendar sync...')
 
     # Compute local UTC offset for the Prefer header so Outlook returns local times
     local_offset = datetime.now(timezone.utc).astimezone().strftime('%z')  # e.g. '+0100'
@@ -95,7 +96,7 @@ def sync_outlook_events(access_token):
     enabled_cals = OutlookCalendar.query.filter_by(is_enabled=True).all()
 
     if not enabled_cals:
-        log('[SYNC] No calendars enabled, skipping sync')
+        logger.info('[SYNC] No calendars enabled, skipping sync')
         return 0
 
     now = datetime.now()
@@ -103,7 +104,7 @@ def sync_outlook_events(access_token):
     total_new = 0
 
     for cal in enabled_cals:
-        log(f'[SYNC] Fetching events from: {cal.name}')
+        logger.info(f'[SYNC] Fetching events from: {cal.name}')
 
         url = f'{GRAPH_API_ENDPOINT}/me/calendars/{cal.outlook_cal_id}/calendarView'
         params = {
@@ -115,14 +116,14 @@ def sync_outlook_events(access_token):
         }
 
         response = requests.get(url, headers=headers, params=params)
-        log(f'[SYNC] "{cal.name}" status: {response.status_code}')
+        logger.info(f'[SYNC] "{cal.name}" status: {response.status_code}')
 
         if response.status_code != 200:
-            log(f'[SYNC] WARNING: Skipping "{cal.name}" (status {response.status_code})')
+            logger.info(f'[SYNC] WARNING: Skipping "{cal.name}" (status {response.status_code})')
             continue
 
         events_data = response.json().get('value', [])
-        log(f'[SYNC] "{cal.name}": {len(events_data)} events')
+        logger.info(f'[SYNC] "{cal.name}": {len(events_data)} events')
 
         for item in events_data:
             outlook_id = item['id']
@@ -163,7 +164,7 @@ def sync_outlook_events(access_token):
         cal.last_synced_at = now
 
     db.session.commit()
-    log(f'[SYNC] Complete! {total_new} new events across {len(enabled_cals)} calendars')
+    logger.info(f'[SYNC] Complete! {total_new} new events across {len(enabled_cals)} calendars')
     return total_new
 
 
@@ -212,7 +213,7 @@ def build_outlook_event_payload(event_data):
 def create_outlook_event(access_token, calendar_outlook_id, event_data):
     """Create an event in an Outlook calendar via Graph API.
     Returns the Graph API response dict (includes 'id')."""
-    log(f'[SYNC] Creating event in Outlook calendar...')
+    logger.info(f'[SYNC] Creating event in Outlook calendar...')
 
     headers = {
         'Authorization': f'Bearer {access_token}',
@@ -225,7 +226,7 @@ def create_outlook_event(access_token, calendar_outlook_id, event_data):
         headers=headers,
         json=payload,
     )
-    log(f'[SYNC] Create event status: {response.status_code}')
+    logger.info(f'[SYNC] Create event status: {response.status_code}')
 
     if response.status_code not in (200, 201):
         error_msg = _extract_error(response)
@@ -236,7 +237,7 @@ def create_outlook_event(access_token, calendar_outlook_id, event_data):
 
 def update_outlook_event(access_token, outlook_event_id, event_data):
     """Update an existing Outlook event via PATCH /me/events/{id}."""
-    log(f'[SYNC] Updating Outlook event...')
+    logger.info(f'[SYNC] Updating Outlook event...')
 
     headers = {
         'Authorization': f'Bearer {access_token}',
@@ -249,7 +250,7 @@ def update_outlook_event(access_token, outlook_event_id, event_data):
         headers=headers,
         json=payload,
     )
-    log(f'[SYNC] Update event status: {response.status_code}')
+    logger.info(f'[SYNC] Update event status: {response.status_code}')
 
     if response.status_code != 200:
         error_msg = _extract_error(response)
@@ -260,7 +261,7 @@ def update_outlook_event(access_token, outlook_event_id, event_data):
 
 def delete_outlook_event(access_token, outlook_event_id):
     """Delete an Outlook event via DELETE /me/events/{id}."""
-    log(f'[SYNC] Deleting Outlook event...')
+    logger.info(f'[SYNC] Deleting Outlook event...')
 
     headers = {'Authorization': f'Bearer {access_token}'}
 
@@ -268,7 +269,7 @@ def delete_outlook_event(access_token, outlook_event_id):
         f'{GRAPH_API_ENDPOINT}/me/events/{outlook_event_id}',
         headers=headers,
     )
-    log(f'[SYNC] Delete event status: {response.status_code}')
+    logger.info(f'[SYNC] Delete event status: {response.status_code}')
 
     # 204 = deleted, 404 = already gone — both are fine
     if response.status_code not in (204, 404):

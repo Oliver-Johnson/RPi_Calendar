@@ -110,6 +110,11 @@
                 <i data-lucide="briefcase" class="w-5 h-5"></i>
                 Jobs
             </button>
+            <button data-view="agency"
+                    class="nav-btn w-full text-left px-4 py-2.5 rounded-lg flex items-center gap-3 text-sm font-medium transition-colors">
+                <i data-lucide="rocket" class="w-5 h-5"></i>
+                Agency
+            </button>
         </nav>
 
         <!-- Outlook Calendars -->
@@ -154,6 +159,9 @@
 
         <!-- Jobs View -->
         <div id="view-jobs" class="hidden flex-1 overflow-y-auto p-4 md:p-6 bg-gray-50/30 dark:bg-darkpanel/10"></div>
+
+        <!-- Agency View -->
+        <div id="view-agency" class="hidden flex-1 overflow-y-auto p-4 md:p-6 bg-gray-50/30 dark:bg-darkpanel/10"></div>
     </main>
 
     <!-- Toast container (stacking) -->
@@ -171,6 +179,7 @@
     <script src="{{ url_for('static', filename='js/calendar.js') }}"></script>
     <script src="{{ url_for('static', filename='js/insights.js') }}"></script>
     <script src="{{ url_for('static', filename='js/jobs.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/agency.js') }}"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
 </html>

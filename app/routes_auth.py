@@ -1,4 +1,4 @@
-from flask import Blueprint, redirect, request, session, jsonify, url_for
+from flask import Blueprint, redirect, request, session, jsonify, url_for, current_app
 from app.sync import get_msal_app, fetch_outlook_calendars, sync_outlook_events
 import os
 import sys
@@ -6,8 +6,8 @@ import sys
 auth_bp = Blueprint('auth', __name__)
 
 
-def log(msg):
-    print(msg, file=sys.stderr, flush=True)
+# Using Flask's built-in logger instead of direct sys.stderr which can cause OSError on Windows
+
 
 
 # Microsoft Graph scopes — full resource URI format
@@ -31,7 +31,7 @@ def login():
         redirect_uri=os.getenv('AZURE_REDIRECT_URI'),
         prompt='consent',  # Force fresh consent to pick up new scopes
     )
-    log(f'[AUTH] Login redirect, scopes={SCOPES}')
+    current_app.logger.info(f'[AUTH] Login redirect, scopes={SCOPES}')
     return redirect(auth_url)
 
 
@@ -52,7 +52,7 @@ def callback():
 
     if 'access_token' in result:
         token = result['access_token']
-        log(f'[AUTH] Token acquired, scopes: {result.get("scope")}')
+        current_app.logger.info(f'[AUTH] Token acquired, scopes: {result.get("scope")}')
 
         session['access_token'] = token
         try:
@@ -62,11 +62,11 @@ def callback():
             count = sync_outlook_events(token)
             return redirect(url_for('index') + f'?synced={count}')
         except Exception as e:
-            log(f'[AUTH] Sync error: {e}')
+            current_app.logger.error(f'[AUTH] Sync error: {e}')
             return jsonify({'error': str(e)}), 500
     else:
         error_detail = result.get('error_description', result.get('error', 'Authentication failed'))
-        log(f'[AUTH] Token acquisition FAILED: {error_detail}')
+        current_app.logger.error(f'[AUTH] Token acquisition FAILED: {error_detail}')
         return jsonify({'error': error_detail}), 400
 
 
