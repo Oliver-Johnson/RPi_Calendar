@@ -44,7 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
     lucide.createIcons();
 
     // ── View routing ────────────────────────────────────────────────────
-    const views = { tasks: 'view-tasks', calendar: 'view-calendar', insights: 'view-insights' };
+    const views = { tasks: 'view-tasks', calendar: 'view-calendar', insights: 'view-insights', jobs: 'view-jobs' };
     let currentView = 'tasks';
 
     function switchView(view) {
@@ -61,6 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (view === 'tasks') TaskView.render();
         if (view === 'calendar') CalendarView.render();
         if (view === 'insights') InsightsView.render();
+        if (view === 'jobs') JobsView.render();
         closeSidebar();
     }
 

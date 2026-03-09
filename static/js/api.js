@@ -121,4 +121,78 @@ const API = {
             body: JSON.stringify(options),
         });
     },
+
+    // ── Jobs ─────────────────────────────────────────
+    getJobSearches() {
+        return this.request('/api/job_searches');
+    },
+    createJobSearch(data) {
+        return this.request('/api/job_searches', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    },
+    updateJobSearch(id, data) {
+        return this.request(`/api/job_searches/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify(data),
+        });
+    },
+    deleteJobSearch(id) {
+        return this.request(`/api/job_searches/${id}`, {
+            method: 'DELETE',
+        });
+    },
+
+    // ── Job Boards ───────────────────────────────────
+    getJobBoards() {
+        return this.request('/api/job_boards');
+    },
+    createJobBoard(data) {
+        return this.request('/api/job_boards', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    },
+    updateJobBoard(id, data) {
+        return this.request(`/api/job_boards/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify(data),
+        });
+    },
+    deleteJobBoard(id) {
+        return this.request(`/api/job_boards/${id}`, {
+            method: 'DELETE',
+        });
+    },
+
+    // ── Jobs ─────────────────────────────────────────
+    getJobs(params = {}) {
+        const url = new URL(window.location.origin + '/api/jobs');
+        Object.keys(params).forEach(key => {
+            if (params[key] !== undefined && params[key] !== null && params[key] !== '') {
+                url.searchParams.append(key, params[key]);
+            }
+        });
+        return this.request(url.pathname + url.search);
+    },
+    updateJob(id, data) {
+        return this.request(`/api/jobs/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify(data),
+        });
+    },
+    deleteJob(id) {
+        return this.request(`/api/jobs/${id}`, {
+            method: 'DELETE',
+        });
+    },
+    triggerScrape() {
+        return this.request('/api/jobs/scrape', {
+            method: 'POST',
+        });
+    },
+    getScrapeStatus() {
+        return this.request('/api/jobs/scrape/status');
+    }
 };

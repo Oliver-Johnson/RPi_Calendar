@@ -1235,3 +1235,173 @@ def reschedule_all():
         'tasks_scheduled': tasks_scheduled,
         'warnings': warnings,
     }), 200
+
+
+# ── Jobs ──────────────────────────────────────────────────────────────────────
+
+from app.models import JobSearch, JobListing, JobBoard
+
+@api_bp.route('/job_searches', methods=['GET'])
+def get_job_searches():
+    searches = JobSearch.query.order_by(JobSearch.name).all()
+    return jsonify([s.to_dict() for s in searches])
+
+@api_bp.route('/job_searches', methods=['POST'])
+def create_job_search():
+    data = request.get_json()
+    name = data.get('name', '').strip()
+    query_str = data.get('query', '').strip()
+
+    if not name or not query_str:
+        return jsonify({'error': 'Name and query are required'}), 400
+
+    search = JobSearch(name=name, search_term=query_str, is_active=data.get('is_active', True))
+    db.session.add(search)
+    db.session.commit()
+    
+    # Trigger an immediate background scrape for this new search specifically 
+    # (or you could just run the generic scrape). We run the generic scrape 
+    # in a background thread so the API response isn't delayed.
+    import threading
+    from scripts.scraper import _do_scrape
+    from flask import current_app
+    
+    app = current_app._get_current_object()
+    def background_scrape(app_context):
+        with app_context:
+            try:
+                print("Running initial on-demand scrape for new search...")
+                _do_scrape()
+            except Exception as e:
+                print(f"Error in background scrape: {e}")
+
+    threading.Thread(target=background_scrape, args=(app.app_context(),)).start()
+
+    return jsonify(search.to_dict()), 201
+
+@api_bp.route('/job_searches/<int:search_id>', methods=['PUT'])
+def update_job_search(search_id):
+    search = JobSearch.query.get_or_404(search_id)
+    data = request.get_json()
+    
+    if 'name' in data and data['name'].strip():
+        search.name = data['name'].strip()
+    if 'query' in data and data['query'].strip():
+        search.search_term = data['query'].strip()
+    if 'is_active' in data:
+        search.is_active = bool(data['is_active'])
+
+    db.session.commit()
+    return jsonify(search.to_dict())
+
+@api_bp.route('/job_searches/<int:search_id>', methods=['DELETE'])
+def delete_job_search(search_id):
+    search = JobSearch.query.get_or_404(search_id)
+    db.session.delete(search)
+    db.session.commit()
+    return '', 204
+
+@api_bp.route('/jobs', methods=['GET'])
+def get_jobs():
+    search_id = request.args.get('search_id', type=int)
+    status = request.args.get('status')
+    
+    query = JobListing.query
+    if search_id:
+        query = query.filter_by(search_id=search_id)
+    if status:
+        query = query.filter_by(status=status)
+        
+    jobs = query.order_by(JobListing.date_found.desc()).all()
+    return jsonify([j.to_dict() for j in jobs])
+
+@api_bp.route('/jobs/<int:job_id>', methods=['PUT'])
+def update_job(job_id):
+    job = JobListing.query.get_or_404(job_id)
+    data = request.get_json()
+    
+    if 'status' in data and data['status'] in ('New', 'Applied', 'Rejected'):
+        job.status = data['status']
+        db.session.commit()
+        return jsonify(job.to_dict())
+    
+    return jsonify({'error': 'Invalid status'}), 400
+
+@api_bp.route('/jobs/<int:job_id>', methods=['DELETE'])
+def delete_job(job_id):
+    job = JobListing.query.get_or_404(job_id)
+    db.session.delete(job)
+    db.session.commit()
+    return '', 204
+
+@api_bp.route('/jobs/scrape', methods=['POST'])
+def trigger_scrape():
+    import threading
+    from scripts.scraper import _do_scrape, is_scraping_now
+    from flask import current_app
+    
+    if is_scraping_now():
+        return jsonify({'error': 'A scrape is already in progress'}), 409
+        
+    app = current_app._get_current_object()
+    def background_scrape(app_context):
+        with app_context:
+            try:
+                print("Running manual on-demand scrape...")
+                _do_scrape()
+            except Exception as e:
+                print(f"Error in manual background scrape: {e}")
+
+    threading.Thread(target=background_scrape, args=(app.app_context(),)).start()
+    return jsonify({'message': 'Scrape triggered successfully in the background'}), 202
+
+@api_bp.route('/jobs/scrape/status', methods=['GET'])
+def scrape_status():
+    from scripts.scraper import is_scraping_now
+    return jsonify({'is_scraping': is_scraping_now()}), 200
+
+# ---------------------------------------------------------------------------
+# Job Boards API
+# ---------------------------------------------------------------------------
+
+@api_bp.route('/job_boards', methods=['GET'])
+def get_job_boards():
+    boards = JobBoard.query.all()
+    return jsonify([b.to_dict() for b in boards])
+
+@api_bp.route('/job_boards', methods=['POST'])
+def create_job_board():
+    data = request.get_json()
+    name = data.get('name', '').strip()
+    url = data.get('url', '').strip()
+
+    if not name or not url:
+        return jsonify({'error': 'Name and URL are required'}), 400
+
+    board = JobBoard(name=name, url=url, is_active=data.get('is_active', True))
+    db.session.add(board)
+    db.session.commit()
+    
+    return jsonify(board.to_dict()), 201
+
+@api_bp.route('/job_boards/<int:board_id>', methods=['PUT'])
+def update_job_board(board_id):
+    board = JobBoard.query.get_or_404(board_id)
+    data = request.get_json()
+    
+    if 'name' in data and data['name'].strip():
+        board.name = data['name'].strip()
+    if 'url' in data and data['url'].strip():
+        board.url = data['url'].strip()
+    if 'is_active' in data:
+        board.is_active = bool(data['is_active'])
+
+    db.session.commit()
+    return jsonify(board.to_dict())
+
+@api_bp.route('/job_boards/<int:board_id>', methods=['DELETE'])
+def delete_job_board(board_id):
+    board = JobBoard.query.get_or_404(board_id)
+    db.session.delete(board)
+    db.session.commit()
+    return '', 204

@@ -168,3 +168,80 @@ class ScheduledBlock(db.Model):
 
     def __repr__(self):
         return f'<ScheduledBlock task={self.task_id} {self.start_time}>'
+
+class JobSearch(db.Model):
+    __tablename__ = 'job_searches'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    search_term = db.Column(db.String(300), nullable=False)
+    is_active = db.Column(db.Boolean, default=True)
+    last_run = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+
+    # Relationships
+    listings = db.relationship('JobListing', backref='search', lazy=True, cascade="all, delete-orphan")
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'query': self.search_term, # Kept as query in JSON API temporarily to avoid frontend churn
+            'is_active': self.is_active,
+            'last_run': self.last_run.isoformat() if self.last_run else None,
+            'created_at': self.created_at.isoformat(),
+        }
+
+    def __repr__(self):
+        return f'<JobSearch {self.name}>'
+
+
+class JobBoard(db.Model):
+    __tablename__ = 'job_boards'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    url = db.Column(db.String(500), nullable=False)
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'url': self.url,
+            'is_active': self.is_active,
+            'created_at': self.created_at.isoformat(),
+        }
+
+    def __repr__(self):
+        return f'<JobBoard {self.name}>'
+
+
+class JobListing(db.Model):
+    __tablename__ = 'job_listings'
+
+    id = db.Column(db.Integer, primary_key=True)
+    search_id = db.Column(db.Integer, db.ForeignKey('job_searches.id'), nullable=False)
+    title = db.Column(db.String(200), nullable=False)
+    company = db.Column(db.String(200), nullable=False)
+    url = db.Column(db.String(500), nullable=False, unique=True)
+    status = db.Column(db.String(50), default='New')  # New, Applied, Rejected
+    deadline = db.Column(db.String(100), nullable=True)
+    date_found = db.Column(db.DateTime, default=datetime.now)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'search_id': self.search_id,
+            'search_name': self.search.name if self.search else None,
+            'title': self.title,
+            'company': self.company,
+            'url': self.url,
+            'status': self.status,
+            'deadline': self.deadline,
+            'date_found': self.date_found.isoformat() if self.date_found else None,
+        }
+
+    def __repr__(self):
+        return f'<JobListing {self.title} at {self.company}>'
