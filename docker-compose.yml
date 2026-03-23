@@ -1,0 +1,11 @@
+services:
+  calendar:
+    build: .
+    ports:
+      - "5000:5000"
+    volumes:
+      # Persist the SQLite database across container restarts
+      - ./instance:/app/instance
+    env_file:
+      - .env
+    restart: unless-stopped

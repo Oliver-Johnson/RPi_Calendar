@@ -317,6 +317,80 @@ def scrape_job_board_links(board_url):
         print(f"  -> Error spidering board {board_url}: {e}")
         return []
 
+def _extract_location(text):
+    """Extract location from job posting text using regex heuristics."""
+    import re
+    patterns = [
+        r'location[:\s]+([^\n\r\.]{3,80})',
+        r'based in[:\s]+([^\n\r\.]{3,60})',
+        r'(remote[\s/]+\w[\w\s/,]+)',
+        r'(hybrid[\s/]+\w[\w\s/,]+)',
+    ]
+    noise_words = ['click', 'apply', 'submit', 'please', 'contact', 'http', 'www']
+    for pattern in patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            loc = match.group(1).strip().rstrip(',').strip()
+            if len(loc) >= 3 and not any(w in loc.lower() for w in noise_words):
+                return loc[:100]
+    return ""
+
+
+def _extract_salary(text):
+    """Extract salary range from job posting text using regex heuristics."""
+    import re
+    patterns = [
+        r'(?:salary|compensation|pay)[:\s]*([£$€]\s*[\d,]+\s*[-–to]+\s*[£$€]?\s*[\d,]+[k]?[^\n\r]{0,30})',
+        r'([£$€]\s*[\d,]+[k]?\s*[-–to]+\s*[£$€]?\s*[\d,]+[k]?)',
+        r'(\d{2,3},\d{3}\s*[-–]\s*\d{2,3},\d{3})',
+        r'(competitive\s+salary)',
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            salary = match.group(1).strip()
+            if len(salary) >= 3:
+                return salary[:100]
+    return ""
+
+
+def _deadline_to_iso(deadline_str):
+    """Convert a display deadline string like 'Jan 15, 2026' to ISO 'YYYY-MM-DD'."""
+    if not deadline_str:
+        return None
+    try:
+        import dateparser
+        parsed = dateparser.parse(deadline_str)
+        if parsed:
+            return parsed.strftime("%Y-%m-%d")
+    except Exception:
+        pass
+    return None
+
+
+def submit_to_job_applier(payload):
+    """
+    POSTs a validated job listing to the Job Applier webhook.
+    Silently skips if JOB_APPLIER_URL env var is not set.
+    Errors are swallowed so a dead applier never breaks the scraper.
+    """
+    webhook_url = os.environ.get('JOB_APPLIER_URL', '').strip()
+    if not webhook_url:
+        return
+
+    try:
+        resp = requests.post(webhook_url, json=payload, timeout=90)
+        data = resp.json()
+        status = data.get('status', '?')
+        score = data.get('score')
+        score_str = f" score={score}" if score is not None else ""
+        print(f"    -> Job Applier: {status}{score_str} (HTTP {resp.status_code})")
+    except requests.exceptions.Timeout:
+        print(f"    -> Job Applier: request timed out for {payload.get('source_url', '')[:60]}")
+    except Exception as e:
+        print(f"    -> Job Applier: error — {e}")
+
+
 def _do_scrape():
     # Get all active searches and job boards
     active_searches = JobSearch.query.filter_by(is_active=True).all()
@@ -355,7 +429,18 @@ def _do_scrape():
                     )
                     db.session.add(new_listing)
                     new_listings_count += 1
-        
+                    submit_to_job_applier({
+                        'source_url':        item['url'],
+                        'company_name':      company_guess,
+                        'job_title':         item['title'],
+                        'job_description':   text[:10000],
+                        'location':          _extract_location(text),
+                        'salary_range':      _extract_salary(text),
+                        'source_board':      search.name,
+                        'deadline':          _deadline_to_iso(deadline_str),
+                        'linkedin_easy_apply': 'linkedin.com' in item['url'] and 'easy apply' in text,
+                    })
+
         search.last_run = datetime.now()
         db.session.commit()
         print(f"  -> Inserted {new_listings_count} new listings.")
@@ -390,6 +475,17 @@ def _do_scrape():
                         )
                         db.session.add(new_listing)
                         new_listings_count += 1
+                        submit_to_job_applier({
+                            'source_url':        link,
+                            'company_name':      company_guess,
+                            'job_title':         page_title,
+                            'job_description':   text[:10000],
+                            'location':          _extract_location(text),
+                            'salary_range':      _extract_salary(text),
+                            'source_board':      board.name,
+                            'deadline':          _deadline_to_iso(deadline_str),
+                            'linkedin_easy_apply': 'linkedin.com' in link and 'easy apply' in text,
+                        })
                     else:
                         # Job listing didn't match our search criteria
                         pass
