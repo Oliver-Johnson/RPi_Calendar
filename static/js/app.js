@@ -212,6 +212,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // ── Init ─────────────────────────────────────────────────────────────
     loadCalendarList();
     switchView('calendar');
+    if (typeof TimerWidget !== 'undefined') {
+        TimerWidget.init();
+    }
 
     // ── Overdue task warning on page load ─────────────────────────────────
     (async () => {

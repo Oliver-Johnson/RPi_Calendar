@@ -115,6 +115,11 @@ const API = {
             body: JSON.stringify({ is_pinned: isPinned }),
         });
     },
+    pulseScheduledBlock(id) {
+        return this.request(`/api/scheduled-blocks/${id}/pulse`, {
+            method: 'POST',
+        });
+    },
     rescheduleAll(options = {}) {
         return this.request('/api/scheduled-blocks/reschedule-all', {
             method: 'POST',

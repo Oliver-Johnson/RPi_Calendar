@@ -337,3 +337,141 @@ kbd {
     transition: background 0.15s;
 }
 .undo-btn:hover { background: rgba(59, 130, 246, 0.25); }
+
+/* ── Floating Timer Widget ────────────────────────────────────────── */
+.timer-widget {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    z-index: 100;
+    width: 280px;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 24px;
+    padding: 1.25rem;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.05);
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    animation: slideUpIn 0.5s ease-out;
+}
+
+.dark .timer-widget {
+    background: rgba(21, 26, 35, 0.8);
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+@keyframes slideUpIn {
+    from { transform: translateY(20px) scale(0.95); opacity: 0; }
+    to { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+.timer-display {
+    font-size: 2.5rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+    background: linear-gradient(135deg, #4f46e5, #9333ea);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: -1px;
+    line-height: 1;
+}
+
+.timer-info {
+    text-align: center;
+}
+
+.timer-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #1f2937;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.dark .timer-title {
+    color: #f3f4f6;
+}
+
+.timer-subtitle {
+    font-size: 0.75rem;
+    color: #6b7280;
+}
+
+.dark .timer-subtitle {
+    color: #9ca3af;
+}
+
+.timer-controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.timer-btn {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    background: #f3f4f6;
+    color: #374151;
+}
+
+.dark .timer-btn {
+    background: #2d3748;
+    color: #e2e8f0;
+}
+
+.timer-btn:hover {
+    transform: scale(1.05);
+    filter: brightness(1.05);
+}
+
+.timer-btn:active {
+    transform: scale(0.95);
+}
+
+.timer-btn.primary {
+    background: linear-gradient(135deg, #4f46e5, #9333ea);
+    color: white;
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+}
+
+.timer-btn.stop {
+    background: #fee2e2;
+    color: #ef4444;
+}
+
+.dark .timer-btn.stop {
+    background: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+}
+
+.timer-progress {
+    width: 100%;
+    height: 4px;
+    background: #e5e7eb;
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.dark .timer-progress {
+    background: #374151;
+}
+
+.timer-progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #4f46e5, #9333ea);
+    transition: width 1s linear;
+}

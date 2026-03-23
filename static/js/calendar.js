@@ -1384,6 +1384,11 @@ const CalendarView = {
                     </div>
                     <div class="flex flex-1 sm:flex-none gap-2.5">
                         ${!block.is_completed ? `
+                        <button onclick="closeModal(); TimerWidget.startNew(${block.id}, '${escapeHtml(block.task_title || 'Task').replace(/'/g, "\\'")}', ${block.scheduled_minutes || 0});"
+                                class="flex-1 sm:flex-none justify-center px-5 py-2.5 text-sm font-semibold bg-gradient-to-r from-purple-600 to-fuchsia-600 hover:from-purple-500 hover:to-fuchsia-500 text-white shadow-md shadow-purple-500/20 rounded-xl flex items-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98]">
+                            <i data-lucide="play" class="w-4 h-4"></i>
+                            Start Timer
+                        </button>
                         <button onclick="closeModal(); CalendarView.showCompleteBlockForm(${block.id});"
                                 class="flex-1 sm:flex-none justify-center px-5 py-2.5 text-sm font-semibold bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white shadow-md shadow-emerald-500/20 rounded-xl flex items-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98]">
                             <i data-lucide="check" class="w-4 h-4"></i>

@@ -625,6 +625,18 @@ def complete_scheduled_block(block_id):
     return jsonify(response)
 
 
+@api_bp.route('/scheduled-blocks/<int:block_id>/pulse', methods=['POST'])
+def pulse_block(block_id):
+    """Increment the actual duration of a scheduled block by 1 minute."""
+    block = ScheduledBlock.query.get_or_404(block_id)
+    if block.actual_duration is None:
+        block.actual_duration = 1
+    else:
+        block.actual_duration += 1
+    db.session.commit()
+    return jsonify(block.to_dict())
+
+
 @api_bp.route('/scheduled-blocks/<int:block_id>/toggle-pin', methods=['POST'])
 def toggle_pin_block(block_id):
     """Toggle the pinned state of a scheduled block."""
