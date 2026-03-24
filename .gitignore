@@ -13,3 +13,8 @@ build/
 .vscode/
 *.swp
 *.swo
+
+# Local Pi deployment scripts (may contain credentials)
+check_pi.py
+deploy_to_pi.py
+finish_deploy.py
