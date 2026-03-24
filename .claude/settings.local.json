@@ -39,7 +39,9 @@
       "Bash(node -c \"C:\\\\Users\\\\olive\\\\OneDrive\\\\Claude_Projects\\\\RPi_Calendar\\\\static\\\\js\\\\calendar.js\")",
       "Bash(timeout 5 python -c \":*)",
       "Bash(python -c \"from app import create_app; app = create_app\\(\\); print\\(''App created successfully''\\)\")",
-      "Bash(python -c \"from app import create_app; app = create_app\\(\\); print\\(''App OK''\\)\")"
+      "Bash(python -c \"from app import create_app; app = create_app\\(\\); print\\(''App OK''\\)\")",
+      "Bash(ls -la /c/Users/olive/OneDrive/Claude_Projects/RPi_Calendar/*.py)",
+      "Bash(find /c/Users/olive/OneDrive/Claude_Projects/RPi_Calendar -maxdepth 2 -name requirements.txt -o -name *.txt -o -name .env*)"
     ]
   }
 }
