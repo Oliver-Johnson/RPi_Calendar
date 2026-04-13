@@ -9,3 +9,13 @@ services:
     env_file:
       - .env
     restart: unless-stopped
+    networks:
+      - pi-services
+
+# =============================================================
+# NETWORKS
+# =============================================================
+# Create this network once: docker network create pi-services
+networks:
+  pi-services:
+    external: true

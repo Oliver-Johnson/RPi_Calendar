@@ -1,5 +1,8 @@
 ---
-path: /workspace/RPi_Calendar/**
+description: Context for RPi_Calendar — loaded when working in this area
+globs:
+  - "RPi_Calendar/**"
+alwaysApply: false
 ---
 
 # RPi_Calendar (Pi-Schedule) — Project Overview

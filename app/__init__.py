@@ -3,8 +3,6 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_apscheduler import APScheduler
 from dotenv import load_dotenv
 import os
-import secrets
-
 load_dotenv()
 
 db = SQLAlchemy()
@@ -18,7 +16,13 @@ def create_app():
         static_folder='../static'
     )
 
-    app.config['SECRET_KEY'] = os.getenv('SECRET_KEY') or secrets.token_hex(32)
+    secret_key = os.getenv('SECRET_KEY')
+    if not secret_key:
+        raise ValueError(
+            "SECRET_KEY is not set. Add SECRET_KEY=<random-hex> to your .env file. "
+            "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\""
+        )
+    app.config['SECRET_KEY'] = secret_key
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///schedule.db'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['SCHEDULER_API_ENABLED'] = False

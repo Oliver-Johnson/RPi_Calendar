@@ -1,21 +1,11 @@
 from flask import Blueprint, redirect, request, session, jsonify, url_for, current_app
-from app.sync import get_msal_app, fetch_outlook_calendars, sync_outlook_events
+from app.sync import (
+    get_msal_app, fetch_outlook_calendars, sync_outlook_events,
+    SCOPES, load_token_cache, save_token_cache, get_token_silent,
+)
 import os
-import sys
 
 auth_bp = Blueprint('auth', __name__)
-
-
-# Using Flask's built-in logger instead of direct sys.stderr which can cause OSError on Windows
-
-
-
-# Microsoft Graph scopes — full resource URI format
-SCOPES = [
-    'https://graph.microsoft.com/Calendars.ReadWrite',
-    'https://graph.microsoft.com/Calendars.Read.Shared',
-    'https://graph.microsoft.com/User.Read',
-]
 
 
 @auth_bp.route('/login')
@@ -43,7 +33,8 @@ def callback():
         error = request.args.get('error_description', 'No authorization code received')
         return jsonify({'error': error}), 400
 
-    msal_app = get_msal_app()
+    cache = load_token_cache()
+    msal_app = get_msal_app(cache)
     result = msal_app.acquire_token_by_authorization_code(
         code,
         scopes=SCOPES,
@@ -52,6 +43,7 @@ def callback():
 
     if 'access_token' in result:
         token = result['access_token']
+        save_token_cache(cache)  # Persist so token survives restarts
         current_app.logger.info(f'[AUTH] Token acquired, scopes: {result.get("scope")}')
 
         session['access_token'] = token
@@ -73,7 +65,7 @@ def callback():
 @auth_bp.route('/sync', methods=['POST'])
 def sync():
     """Sync Outlook events using the stored access token."""
-    token = session.get('access_token')
+    token = get_token_silent() or session.get('access_token')
     if not token:
         return jsonify({'error': 'Not authenticated', 'auth_url': '/auth/login'}), 401
 

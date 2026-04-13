@@ -42,7 +42,7 @@ After=network.target
 [Service]
 User=$USER
 WorkingDirectory=$(pwd)
-ExecStart=$(pwd)/venv/bin/python run.py
+ExecStart=$(pwd)/venv/bin/gunicorn --workers 1 --bind 0.0.0.0:5000 --timeout 120 "app:create_app()"
 Restart=always
 Environment=FLASK_ENV=production
 

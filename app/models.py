@@ -24,7 +24,7 @@ class Task(db.Model):
 
     def get_time_summary(self):
         """Return scheduled and completed minutes for this task."""
-        blocks = ScheduledBlock.query.filter_by(task_id=self.id).all()
+        blocks = self.scheduled_blocks  # Use already-loaded relationship (avoids N+1 when joinedload is used)
         scheduled = sum((b.end_time - b.start_time).total_seconds() / 60 for b in blocks)
         completed = sum(b.actual_duration for b in blocks if b.is_completed and b.actual_duration)
         return {

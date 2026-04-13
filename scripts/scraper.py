@@ -1,10 +1,12 @@
 import os
 import sys
 import time
+import threading
 import requests
 from bs4 import BeautifulSoup
-from datetime import datetime
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
+from flask import has_app_context
 
 # Add the project directory to the sys.path so we can import the app
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -187,12 +189,12 @@ def verify_job_listing(url):
                 match = re.search(pattern, text)
                 if match:
                     date_cand = match.group(1).strip()
-                    parsed_date = dateparser.parse(date_cand, settings={'STRICT_PARSING': False})
-                    
+                    parsed_date = dateparser.parse(date_cand, settings={'STRICT_PARSING': True})
+
                     if parsed_date:
-                        # If the deadline has already passed, invalidate this job completely
-                        if parsed_date < datetime.now():
-                            is_valid = False
+                        now = datetime.now()
+                        if parsed_date < now or parsed_date > now + timedelta(days=730):
+                            # Sanity check: past or more than 2 years in future — treat as no deadline
                             break
                         else:
                             deadline_str = parsed_date.strftime("%b %d, %Y")
@@ -203,8 +205,6 @@ def verify_job_listing(url):
     except Exception as e:
         print(f"    -> Connection error verifying {url}: {e}")
         return False, "Unknown", None, "", "Unknown Job"
-from flask import has_app_context
-import threading
 
 # Thread-safe global state for UI polling
 _is_scraping = False
@@ -378,8 +378,11 @@ def submit_to_job_applier(payload):
     if not webhook_url:
         return
 
+    token = os.environ.get('SIDECAR_TOKEN', '').strip()
+    headers = {'X-Sidecar-Token': token} if token else {}
+
     try:
-        resp = requests.post(webhook_url, json=payload, timeout=90)
+        resp = requests.post(webhook_url, json=payload, headers=headers, timeout=90)
         data = resp.json()
         status = data.get('status', '?')
         score = data.get('score')

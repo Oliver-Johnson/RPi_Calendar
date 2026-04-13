@@ -10,19 +10,65 @@ from app.models import Event, OutlookCalendar
 
 GRAPH_API_ENDPOINT = 'https://graph.microsoft.com/v1.0'
 
+# Scopes defined here so get_token_silent() and routes_auth.py share one source of truth
+SCOPES = [
+    'https://graph.microsoft.com/Calendars.ReadWrite',
+    'https://graph.microsoft.com/Calendars.Read.Shared',
+    'https://graph.microsoft.com/User.Read',
+]
+
+TOKEN_CACHE_PATH = os.path.join(os.path.dirname(__file__), '..', 'instance', 'token_cache.json')
 
 logger = logging.getLogger(__name__)
 
 
+class OutlookAPIError(Exception):
+    """Raised when a Graph API call returns an unexpected HTTP status."""
+    def __init__(self, status_code, message):
+        super().__init__(message)
+        self.status_code = status_code
 
-def get_msal_app():
+
+def load_token_cache():
+    """Load the serializable MSAL token cache from disk (or return an empty one)."""
+    cache = msal.SerializableTokenCache()
+    if os.path.exists(TOKEN_CACHE_PATH):
+        with open(TOKEN_CACHE_PATH, 'r') as f:
+            cache.deserialize(f.read())
+    return cache
+
+
+def save_token_cache(cache):
+    """Persist the token cache to disk if it has changed."""
+    if cache.has_state_changed:
+        os.makedirs(os.path.dirname(os.path.abspath(TOKEN_CACHE_PATH)), exist_ok=True)
+        with open(TOKEN_CACHE_PATH, 'w') as f:
+            f.write(cache.serialize())
+
+
+def get_msal_app(cache=None):
     # Use /common authority so Graph can route personal Outlook.com
     # accounts to the consumer calendar service (not tenant Exchange).
     return msal.ConfidentialClientApplication(
         client_id=os.getenv('AZURE_CLIENT_ID'),
         client_credential=os.getenv('AZURE_CLIENT_SECRET'),
         authority='https://login.microsoftonline.com/common',
+        token_cache=cache,
     )
+
+
+def get_token_silent():
+    """Acquire a token silently from the persistent cache. Returns access_token or None."""
+    cache = load_token_cache()
+    app = get_msal_app(cache)
+    accounts = app.get_accounts()
+    if not accounts:
+        return None
+    result = app.acquire_token_silent(SCOPES, account=accounts[0])
+    save_token_cache(cache)
+    if result and 'access_token' in result:
+        return result['access_token']
+    return None
 
 
 def fetch_outlook_calendars(access_token):
@@ -46,7 +92,7 @@ def fetch_outlook_calendars(access_token):
             error_msg = response.json().get('error', {}).get('message', response.text[:300])
         except Exception:
             error_msg = response.text[:500] if response.text else 'Empty response'
-        raise Exception(f'Failed to list calendars ({response.status_code}): {error_msg}')
+        raise OutlookAPIError(response.status_code, f'Failed to list calendars: {error_msg}')
 
     calendars_data = response.json().get('value', [])
     logger.info(f'[SYNC] Found {len(calendars_data)} calendars')
@@ -122,7 +168,14 @@ def sync_outlook_events(access_token):
             logger.info(f'[SYNC] WARNING: Skipping "{cal.name}" (status {response.status_code})')
             continue
 
-        events_data = response.json().get('value', [])
+        response_json = response.json()
+        events_data = response_json.get('value', [])
+        while '@odata.nextLink' in response_json:
+            next_response = requests.get(response_json['@odata.nextLink'], headers=headers)
+            if next_response.status_code != 200:
+                break
+            response_json = next_response.json()
+            events_data.extend(response_json.get('value', []))
         logger.info(f'[SYNC] "{cal.name}": {len(events_data)} events')
 
         for item in events_data:
@@ -230,7 +283,7 @@ def create_outlook_event(access_token, calendar_outlook_id, event_data):
 
     if response.status_code not in (200, 201):
         error_msg = _extract_error(response)
-        raise Exception(f'Failed to create Outlook event ({response.status_code}): {error_msg}')
+        raise OutlookAPIError(response.status_code, f'Failed to create Outlook event: {error_msg}')
 
     return response.json()
 
@@ -254,7 +307,7 @@ def update_outlook_event(access_token, outlook_event_id, event_data):
 
     if response.status_code != 200:
         error_msg = _extract_error(response)
-        raise Exception(f'Failed to update Outlook event ({response.status_code}): {error_msg}')
+        raise OutlookAPIError(response.status_code, f'Failed to update Outlook event: {error_msg}')
 
     return response.json()
 
@@ -274,6 +327,6 @@ def delete_outlook_event(access_token, outlook_event_id):
     # 204 = deleted, 404 = already gone — both are fine
     if response.status_code not in (204, 404):
         error_msg = _extract_error(response)
-        raise Exception(f'Failed to delete Outlook event ({response.status_code}): {error_msg}')
+        raise OutlookAPIError(response.status_code, f'Failed to delete Outlook event: {error_msg}')
 
     return response.status_code

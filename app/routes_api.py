@@ -1,6 +1,8 @@
 from flask import Blueprint, request, jsonify, session
 from app import db
 from app.models import Task, Event, OutlookCalendar, ScheduledBlock
+from app.sync import OutlookAPIError
+from sqlalchemy.orm import joinedload
 from datetime import datetime, timedelta
 
 api_bp = Blueprint('api', __name__)
@@ -8,6 +10,7 @@ api_bp = Blueprint('api', __name__)
 VALID_PRIORITIES = ('High', 'Medium', 'Low')
 VALID_STATUSES = ('Pending', 'In Progress', 'Completed')
 VALID_RECURRENCES = ('daily', 'weekly', 'monthly', 'yearly')
+ALLOWED_ORDER_BY = {'created_at', 'priority', 'title', 'due_date'}
 
 
 # ── Tasks ────────────────────────────────────────────────────────────────────
@@ -17,7 +20,11 @@ def get_tasks():
     priority = request.args.get('priority')
     status = request.args.get('status')
 
-    query = Task.query
+    order_by = request.args.get('order_by', 'created_at')
+    if order_by not in ALLOWED_ORDER_BY:
+        order_by = 'created_at'
+
+    query = Task.query.options(joinedload(Task.scheduled_blocks))
     if priority and priority in VALID_PRIORITIES:
         query = query.filter_by(priority=priority)
     if status and status in VALID_STATUSES:
@@ -306,11 +313,10 @@ def create_event():
         from app.sync import create_outlook_event
         try:
             result = create_outlook_event(token, cal.outlook_cal_id, data)
-        except Exception as e:
-            error_msg = str(e)
-            if '401' in error_msg:
+        except OutlookAPIError as e:
+            if e.status_code == 401:
                 return jsonify({'error': 'Token expired, please re-authenticate', 'auth_url': '/auth/login'}), 401
-            return jsonify({'error': f'Outlook sync failed: {error_msg}'}), 502
+            return jsonify({'error': f'Outlook sync failed: {e}'}), 502
 
         event = Event(
             title=data['title'].strip(),
@@ -382,16 +388,15 @@ def update_event(event_id):
                 'description': event.description or '',
                 'is_all_day': event.is_all_day,
             })
-        except Exception as e:
-            error_msg = str(e)
-            if '401' in error_msg:
+        except OutlookAPIError as e:
+            if e.status_code == 401:
                 return jsonify({'error': 'Token expired, please re-authenticate', 'auth_url': '/auth/login'}), 401
-            if '404' in error_msg:
+            if e.status_code == 404:
                 # Event was deleted in Outlook; remove locally too
                 db.session.delete(event)
                 db.session.commit()
                 return jsonify({'error': 'Event no longer exists in Outlook (removed locally)'}), 404
-            return jsonify({'error': f'Outlook sync failed: {error_msg}'}), 502
+            return jsonify({'error': f'Outlook sync failed: {e}'}), 502
 
     db.session.commit()
     return jsonify(event.to_dict())
@@ -421,13 +426,12 @@ def delete_event(event_id):
             from app.sync import delete_outlook_event
             try:
                 delete_outlook_event(token, event.outlook_id)
-            except Exception as e:
-                error_msg = str(e)
-                if '401' in error_msg:
+            except OutlookAPIError as e:
+                if e.status_code == 401:
                     return jsonify({'error': 'Token expired, please re-authenticate', 'auth_url': '/auth/login'}), 401
                 # If not a 404 (already deleted), report the error
-                if '404' not in error_msg:
-                    return jsonify({'error': f'Outlook delete failed: {error_msg}'}), 502
+                if e.status_code != 404:
+                    return jsonify({'error': f'Outlook delete failed: {e}'}), 502
 
     db.session.delete(event)
     db.session.commit()
@@ -1275,15 +1279,15 @@ def create_job_search():
     # (or you could just run the generic scrape). We run the generic scrape 
     # in a background thread so the API response isn't delayed.
     import threading
-    from scripts.scraper import _do_scrape
+    from scripts.scraper import run_scraper
     from flask import current_app
-    
+
     app = current_app._get_current_object()
     def background_scrape(app_context):
         with app_context:
             try:
                 print("Running initial on-demand scrape for new search...")
-                _do_scrape()
+                run_scraper()
             except Exception as e:
                 print(f"Error in background scrape: {e}")
 
@@ -1349,18 +1353,18 @@ def delete_job(job_id):
 @api_bp.route('/jobs/scrape', methods=['POST'])
 def trigger_scrape():
     import threading
-    from scripts.scraper import _do_scrape, is_scraping_now
+    from scripts.scraper import run_scraper, is_scraping_now
     from flask import current_app
-    
+
     if is_scraping_now():
         return jsonify({'error': 'A scrape is already in progress'}), 409
-        
+
     app = current_app._get_current_object()
     def background_scrape(app_context):
         with app_context:
             try:
                 print("Running manual on-demand scrape...")
-                _do_scrape()
+                run_scraper()
             except Exception as e:
                 print(f"Error in manual background scrape: {e}")
 
@@ -1390,6 +1394,9 @@ def create_job_board():
     if not name or not url:
         return jsonify({'error': 'Name and URL are required'}), 400
 
+    if not url.startswith(('http://', 'https://')):
+        return jsonify({'error': 'URL must start with http:// or https://'}), 400
+
     board = JobBoard(name=name, url=url, is_active=data.get('is_active', True))
     db.session.add(board)
     db.session.commit()
@@ -1404,7 +1411,10 @@ def update_job_board(board_id):
     if 'name' in data and data['name'].strip():
         board.name = data['name'].strip()
     if 'url' in data and data['url'].strip():
-        board.url = data['url'].strip()
+        new_url = data['url'].strip()
+        if not new_url.startswith(('http://', 'https://')):
+            return jsonify({'error': 'URL must start with http:// or https://'}), 400
+        board.url = new_url
     if 'is_active' in data:
         board.is_active = bool(data['is_active'])
 
