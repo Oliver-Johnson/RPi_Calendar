@@ -1,0 +1,124 @@
+/* ============================================
+   Touch-Optimised UI — Phase 3
+   ============================================ */
+
+/* Base font minimum */
+:root {
+    --touch-target-min: 56px;
+    font-size: 16px;
+}
+
+/* Tap highlight for all interactive elements */
+button,
+a,
+[role="button"],
+.nav-btn,
+input[type="checkbox"],
+input[type="radio"],
+select,
+label {
+    -webkit-tap-highlight-color: rgba(255, 255, 255, 0.1);
+    touch-action: manipulation; /* eliminates 300ms tap delay */
+}
+
+/* Minimum tap target sizes */
+button,
+.nav-btn,
+.home-card,
+[role="button"] {
+    min-height: var(--touch-target-min);
+    min-width: var(--touch-target-min);
+}
+
+/* Nav labels minimum font size */
+.nav-btn span,
+nav label,
+.nav-label {
+    font-size: 14px;
+}
+
+/* Remove hover-only states — replace with :active equivalents */
+/* Any element that only had :hover highlighting now also responds to :active */
+button:active,
+.nav-btn:active,
+.home-card:active,
+[role="button"]:active {
+    opacity: 0.85;
+    transform: scale(0.98);
+    transition: transform 0.08s ease, opacity 0.08s ease;
+}
+
+/* Scrollable containers: pan-y so horizontal swipe gestures are not consumed */
+main,
+.overflow-y-auto,
+[class*="overflow-y"] {
+    touch-action: pan-y;
+}
+
+/* Styled scrollbars (visible on dark background) */
+::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.25);
+    border-radius: 6px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover,
+::-webkit-scrollbar-thumb:active {
+    background: rgba(255, 255, 255, 0.45);
+    background-clip: padding-box;
+}
+
+/* Pull-to-refresh indicator */
+#pull-to-refresh-indicator {
+    position: fixed;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10000;
+    background: rgba(30, 30, 30, 0.92);
+    backdrop-filter: blur(8px);
+    color: #e0e0e0;
+    font-size: 14px;
+    font-weight: 500;
+    padding: 8px 20px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+    white-space: nowrap;
+}
+
+#pull-to-refresh-indicator.hidden {
+    display: none;
+}
+
+/* Ensure minimum font size in all inputs / selects (prevents iOS zoom) */
+input,
+select,
+textarea {
+    font-size: 16px !important;
+}
+
+/* Input height for comfortable touch */
+input[type="text"],
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"],
+input[type="number"],
+input[type="email"],
+select,
+textarea {
+    min-height: 48px;
+    padding: 10px 14px;
+}

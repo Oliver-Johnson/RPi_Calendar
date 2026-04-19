@@ -31,6 +31,7 @@
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/touch.css') }}">
 </head>
 <body class="bg-gray-50 dark:bg-darkbg h-screen flex overflow-hidden antialiased font-sans relative z-0">
     <div class="absolute inset-0 z-[-1] pointer-events-none transition-opacity duration-300 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-50 via-white to-white dark:opacity-0"></div>
@@ -178,6 +179,44 @@
         <div id="view-agency" class="hidden flex-1 overflow-y-auto p-4 md:p-6 bg-gray-50/30 dark:bg-darkpanel/10"></div>
     </main>
 
+    <!-- Pull-to-refresh indicator -->
+    <div id="pull-to-refresh-indicator" class="hidden"></div>
+
+    <!-- Quick-add Task Modal -->
+    <div id="modal-add-task" class="home-quick-modal hidden">
+        <div class="home-quick-modal-content">
+            <button class="home-quick-modal-close" onclick="HomeView._closeModal('modal-add-task')">✕</button>
+            <h2 class="home-quick-modal-title">Add Task</h2>
+            <form onsubmit="HomeView._submitTask(event)">
+                <input type="text" id="task-title" placeholder="Task title…" required autocomplete="off">
+                <input type="date" id="task-due-date" placeholder="Due date (optional)">
+                <select id="task-priority">
+                    <option value="High">🔴 High priority</option>
+                    <option value="Medium" selected>🟡 Medium priority</option>
+                    <option value="Low">🟢 Low priority</option>
+                </select>
+                <button type="submit" class="home-quick-modal-submit">Add Task</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Quick-add Event Modal -->
+    <div id="modal-add-event" class="home-quick-modal hidden">
+        <div class="home-quick-modal-content">
+            <button class="home-quick-modal-close" onclick="HomeView._closeModal('modal-add-event')">✕</button>
+            <h2 class="home-quick-modal-title">Add Event</h2>
+            <form onsubmit="HomeView._submitEvent(event)">
+                <input type="text" id="event-title" placeholder="Event title…" required autocomplete="off">
+                <input type="datetime-local" id="event-start">
+                <input type="datetime-local" id="event-end">
+                <select id="event-calendar">
+                    <option value="">Default calendar</option>
+                </select>
+                <button type="submit" class="home-quick-modal-submit">Add Event</button>
+            </form>
+        </div>
+    </div>
+
     <!-- Toast container (stacking) -->
     <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col-reverse gap-2 pointer-events-none"></div>
 
@@ -196,6 +235,7 @@
     <script src="{{ url_for('static', filename='js/jobs.js') }}"></script>
     <script src="{{ url_for('static', filename='js/agency.js') }}"></script>
     <script src="{{ url_for('static', filename='js/timer.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/touch.js') }}"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
 </html>

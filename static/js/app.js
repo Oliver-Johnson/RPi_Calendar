@@ -237,6 +237,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (typeof TimerWidget !== 'undefined') {
         TimerWidget.init();
     }
+    if (typeof TouchHandler !== 'undefined') {
+        TouchHandler.init(switchView, () => currentView);
+    }
 
     // ── Overdue task warning on page load ─────────────────────────────────
     (async () => {
