@@ -30,6 +30,7 @@
     </script>
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}">
 </head>
 <body class="bg-gray-50 dark:bg-darkbg h-screen flex overflow-hidden antialiased font-sans relative z-0">
     <div class="absolute inset-0 z-[-1] pointer-events-none transition-opacity duration-300 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-50 via-white to-white dark:opacity-0"></div>
@@ -90,6 +91,11 @@
 
         <!-- Navigation -->
         <nav class="flex-1 p-3 space-y-1">
+            <button data-view="home"
+                    class="nav-btn w-full text-left px-4 py-2.5 rounded-lg flex items-center gap-3 text-sm font-medium transition-colors">
+                <i data-lucide="home" class="w-5 h-5"></i>
+                Home
+            </button>
             <button data-view="tasks"
                     class="nav-btn active w-full text-left px-4 py-2.5 rounded-lg flex items-center gap-3 text-sm font-medium transition-colors">
                 <i data-lucide="check-square" class="w-5 h-5"></i>
@@ -146,8 +152,16 @@
         </div>
     </aside>
 
+    <!-- Ambient Dim Overlay -->
+    <div id="ambient-dim" class="ambient-dim hidden">
+        <div id="ambient-dim-clock" class="ambient-dim-clock">00:00</div>
+    </div>
+
     <!-- Main Content -->
     <main class="flex-1 flex flex-col pt-14 md:pt-0 overflow-hidden">
+        <!-- Home View -->
+        <div id="view-home" class="hidden flex-1 min-h-0 overflow-hidden"></div>
+
         <!-- Task View -->
         <div id="view-tasks" class="flex-1 overflow-y-auto p-4 md:p-6"></div>
 
@@ -174,6 +188,7 @@
 
     <!-- Scripts (order matters) -->
     <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/home.js') }}"></script>
     <script src="{{ url_for('static', filename='js/api.js') }}"></script>
     <script src="{{ url_for('static', filename='js/tasks.js') }}"></script>
     <script src="{{ url_for('static', filename='js/calendar.js') }}"></script>

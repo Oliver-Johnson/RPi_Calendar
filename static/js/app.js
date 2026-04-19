@@ -44,8 +44,8 @@ document.addEventListener('DOMContentLoaded', () => {
     lucide.createIcons();
 
     // ── View routing ────────────────────────────────────────────────────
-    const views = { tasks: 'view-tasks', calendar: 'view-calendar', insights: 'view-insights', jobs: 'view-jobs', agency: 'view-agency' };
-    let currentView = 'tasks';
+    const views = { home: 'view-home', tasks: 'view-tasks', calendar: 'view-calendar', insights: 'view-insights', jobs: 'view-jobs', agency: 'view-agency' };
+    let currentView = 'home';
 
     function switchView(view) {
         Object.entries(views).forEach(([key, id]) => {
@@ -58,6 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         currentView = view;
+        if (view === 'home') HomeView.init();
         if (view === 'tasks') TaskView.render();
         if (view === 'calendar') CalendarView.render();
         if (view === 'insights') InsightsView.render();
@@ -65,6 +66,27 @@ document.addEventListener('DOMContentLoaded', () => {
         if (view === 'agency') AgencyView.render();
         closeSidebar();
     }
+
+    // ── Ambient idle / dim overlay ───────────────────────────────────────
+    const IDLE_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
+    let _idleTimer = null;
+
+    function _resetIdle() {
+        if (_idleTimer) clearTimeout(_idleTimer);
+        const overlay = document.getElementById('ambient-dim');
+        if (overlay) overlay.classList.add('hidden');
+        _idleTimer = setTimeout(_enterAmbient, IDLE_TIMEOUT_MS);
+    }
+
+    function _enterAmbient() {
+        const overlay = document.getElementById('ambient-dim');
+        if (overlay) overlay.classList.remove('hidden');
+    }
+
+    ['touchstart', 'mousedown', 'keydown'].forEach(evt =>
+        document.addEventListener(evt, _resetIdle, { passive: true })
+    );
+    _resetIdle(); // start the timer on page load
 
     document.querySelectorAll('.nav-btn').forEach(btn => {
         btn.addEventListener('click', () => switchView(btn.dataset.view));
@@ -211,7 +233,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ── Init ─────────────────────────────────────────────────────────────
     loadCalendarList();
-    switchView('calendar');
+    switchView('home');
     if (typeof TimerWidget !== 'undefined') {
         TimerWidget.init();
     }
