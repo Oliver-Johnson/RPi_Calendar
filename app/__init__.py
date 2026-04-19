@@ -32,9 +32,11 @@ def create_app():
 
     from app.routes_api import api_bp
     from app.routes_auth import auth_bp
+    from app.routes_weather import weather_bp
 
     app.register_blueprint(api_bp, url_prefix='/api')
     app.register_blueprint(auth_bp, url_prefix='/auth')
+    app.register_blueprint(weather_bp, url_prefix='/api')
 
     @app.route('/')
     def index():

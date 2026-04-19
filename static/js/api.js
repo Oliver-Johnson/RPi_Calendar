@@ -33,6 +33,11 @@ const API = {
         return this.request(`/api/tasks/${id}`, { method: 'DELETE' });
     },
 
+    // ── Weather ─────────────────────────────────────────────────────────
+    getWeather() {
+        return this.request('/api/weather');
+    },
+
     // ── Events ──────────────────────────────────────────────────────────
     getEvents(start, end) {
         return this.request(`/api/events?start=${start}&end=${end}`);
