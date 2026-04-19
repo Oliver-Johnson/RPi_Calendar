@@ -68,11 +68,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ── Ambient idle / dim overlay ───────────────────────────────────────
-    const IDLE_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
-    let _idleTimer = null;
+    const IDLE_TIMEOUT_MS  = 3  * 60 * 1000; // 3 min  → enter ambient dim
+    const SLEEP_TIMEOUT_MS = 10 * 60 * 1000; // +10 min → auto-sleep (13 min total)
+    let _idleTimer  = null;
+    let _sleepTimer = null;
 
     function _resetIdle() {
-        if (_idleTimer) clearTimeout(_idleTimer);
+        if (_idleTimer)  clearTimeout(_idleTimer);
+        if (_sleepTimer) clearTimeout(_sleepTimer);
         const overlay = document.getElementById('ambient-dim');
         if (overlay) overlay.classList.add('hidden');
         _idleTimer = setTimeout(_enterAmbient, IDLE_TIMEOUT_MS);
@@ -81,7 +84,43 @@ document.addEventListener('DOMContentLoaded', () => {
     function _enterAmbient() {
         const overlay = document.getElementById('ambient-dim');
         if (overlay) overlay.classList.remove('hidden');
+        // Auto-sleep 10 min after ambient dim kicks in
+        _sleepTimer = setTimeout(() => SleepManager.sleep(), SLEEP_TIMEOUT_MS);
     }
+
+    // ── Sleep Manager ────────────────────────────────────────────────────
+    const SleepManager = {
+        sleep() {
+            // Stop idle timers so they don't fire while sleeping
+            if (_idleTimer)  { clearTimeout(_idleTimer);  _idleTimer  = null; }
+            if (_sleepTimer) { clearTimeout(_sleepTimer); _sleepTimer = null; }
+            // Hide ambient dim if showing
+            const ambientOverlay = document.getElementById('ambient-dim');
+            if (ambientOverlay) ambientOverlay.classList.add('hidden');
+
+            const overlay = document.getElementById('sleep-overlay');
+            if (overlay) overlay.style.display = 'block';
+
+            API.displaySleep(); // fire-and-forget
+
+            const onWake = (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                overlay.removeEventListener('touchstart', onWake);
+                overlay.removeEventListener('click', onWake);
+                SleepManager.wake();
+            };
+            overlay.addEventListener('touchstart', onWake, { once: true });
+            overlay.addEventListener('click', onWake, { once: true });
+        },
+
+        wake() {
+            API.displayWake(); // fire-and-forget
+            const overlay = document.getElementById('sleep-overlay');
+            if (overlay) overlay.style.display = 'none';
+            _resetIdle(); // restart idle timer
+        },
+    };
 
     ['touchstart', 'mousedown', 'keydown'].forEach(evt =>
         document.addEventListener(evt, _resetIdle, { passive: true })

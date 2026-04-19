@@ -4,8 +4,29 @@ from app.models import Task, Event, OutlookCalendar, ScheduledBlock
 from app.sync import OutlookAPIError
 from sqlalchemy.orm import joinedload
 from datetime import datetime, timedelta
+import subprocess
 
 api_bp = Blueprint('api', __name__)
+
+
+@api_bp.route('/display/sleep', methods=['POST'])
+def display_sleep():
+    """Turn off HDMI output on Raspberry Pi."""
+    try:
+        subprocess.run(['vcgencmd', 'display_power', '0'], check=True, timeout=3)
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        pass  # Not a Pi or vcgencmd unavailable — silently ignore
+    return jsonify({'status': 'sleeping'})
+
+
+@api_bp.route('/display/wake', methods=['POST'])
+def display_wake():
+    """Turn on HDMI output on Raspberry Pi."""
+    try:
+        subprocess.run(['vcgencmd', 'display_power', '1'], check=True, timeout=3)
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        pass  # Not a Pi — silently ignore
+    return jsonify({'status': 'awake'})
 
 VALID_PRIORITIES = ('High', 'Medium', 'Low')
 VALID_STATUSES = ('Pending', 'In Progress', 'Completed')

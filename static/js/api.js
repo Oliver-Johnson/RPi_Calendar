@@ -204,5 +204,7 @@ const API = {
     },
     getScrapeStatus() {
         return this.request('/api/jobs/scrape/status');
-    }
+    },
+    displaySleep() { return this.request('/api/display/sleep', { method: 'POST' }); },
+    displayWake()  { return this.request('/api/display/wake',  { method: 'POST' }); },
 };

@@ -58,6 +58,10 @@ const HomeView = {
                     </div>
                 </div>
                 <div class="home-fab-container">
+                    <button class="home-fab" id="fab-sleep" onclick="SleepManager.sleep()">
+                        <span class="home-fab-icon">🌙</span>
+                        <span class="home-fab-label">Sleep</span>
+                    </button>
                     <button class="home-fab" id="fab-add-task" onclick="HomeView._openAddTask()">
                         <span class="home-fab-icon">➕</span>
                         <span class="home-fab-label">Task</span>
