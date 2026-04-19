@@ -57,6 +57,20 @@ const HomeView = {
                         <div style="color:#555;font-size:13px;">Loading weather&hellip;</div>
                     </div>
                 </div>
+                <div class="home-fab-container">
+                    <button class="home-fab" id="fab-add-task" onclick="HomeView._openAddTask()">
+                        <span class="home-fab-icon">➕</span>
+                        <span class="home-fab-label">Task</span>
+                    </button>
+                    <button class="home-fab" id="fab-add-event" onclick="HomeView._openAddEvent()">
+                        <span class="home-fab-icon">📅</span>
+                        <span class="home-fab-label">Event</span>
+                    </button>
+                    <button class="home-fab home-fab-dismiss hidden" id="fab-dismiss-reminder">
+                        <span class="home-fab-icon">🔕</span>
+                        <span class="home-fab-label">Dismiss</span>
+                    </button>
+                </div>
             </div>
         `;
     },
@@ -283,5 +297,114 @@ const HomeView = {
     _startWeatherRefresh() {
         if (this._weatherInterval) clearInterval(this._weatherInterval);
         this._weatherInterval = setInterval(() => this._loadWeather(), 30 * 60 * 1000);
+    },
+
+    // ---- Quick-action FABs ----
+
+    _openAddTask() {
+        const modal = document.getElementById('modal-add-task');
+        if (!modal) return;
+        // Reset form
+        const form = modal.querySelector('form');
+        if (form) form.reset();
+        modal.classList.remove('hidden');
+        modal.querySelector('input[type="text"]')?.focus();
+    },
+
+    async _openAddEvent() {
+        const modal = document.getElementById('modal-add-event');
+        if (!modal) return;
+        const form = modal.querySelector('form');
+        if (form) form.reset();
+
+        // Prefill start to nearest upcoming hour
+        const now = new Date();
+        now.setMinutes(0, 0, 0);
+        now.setHours(now.getHours() + 1);
+        const toLocal = d => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+        const startEl = document.getElementById('event-start');
+        const endEl   = document.getElementById('event-end');
+        if (startEl) startEl.value = toLocal(now);
+        if (endEl) {
+            const end = new Date(now.getTime() + 60 * 60 * 1000);
+            endEl.value = toLocal(end);
+        }
+
+        // Populate calendar selector
+        const calSelect = document.getElementById('event-calendar');
+        if (calSelect) {
+            calSelect.innerHTML = '<option value="">Default calendar</option>';
+            try {
+                const cals = await API.getCalendars();
+                (cals || []).forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c.id;
+                    opt.textContent = c.name;
+                    calSelect.appendChild(opt);
+                });
+            } catch (_) { /* leave default only */ }
+        }
+
+        modal.classList.remove('hidden');
+        modal.querySelector('input[type="text"]')?.focus();
+    },
+
+    _closeModal(id) {
+        const modal = document.getElementById(id);
+        if (modal) modal.classList.add('hidden');
+    },
+
+    async _submitTask(e) {
+        e.preventDefault();
+        const title    = document.getElementById('task-title')?.value.trim();
+        const dueDate  = document.getElementById('task-due-date')?.value || null;
+        const priority = document.getElementById('task-priority')?.value || 'Medium';
+        if (!title) return;
+
+        const btn = e.target.querySelector('button[type="submit"]');
+        const orig = btn ? btn.textContent : '';
+        if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+
+        try {
+            await API.createTask({ title, due_date: dueDate, priority, status: 'Pending' });
+            this._closeModal('modal-add-task');
+            await this._loadTasks();
+            if (typeof showToast !== 'undefined') showToast('Task added', 'success');
+        } catch (err) {
+            if (typeof showToast !== 'undefined') showToast('Failed: ' + err.message, 'error');
+        } finally {
+            if (btn) { btn.disabled = false; btn.textContent = orig; }
+        }
+    },
+
+    async _submitEvent(e) {
+        e.preventDefault();
+        const title      = document.getElementById('event-title')?.value.trim();
+        const startRaw   = document.getElementById('event-start')?.value;
+        const endRaw     = document.getElementById('event-end')?.value;
+        const calendarId = document.getElementById('event-calendar')?.value || null;
+        if (!title || !startRaw) return;
+
+        const btn = e.target.querySelector('button[type="submit"]');
+        const orig = btn ? btn.textContent : '';
+        if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+
+        const payload = {
+            title,
+            start_time: new Date(startRaw).toISOString(),
+            end_time:   endRaw ? new Date(endRaw).toISOString() : new Date(new Date(startRaw).getTime() + 3600000).toISOString(),
+        };
+        if (calendarId) payload.calendar_id = calendarId;
+
+        try {
+            await API.createEvent(payload);
+            this._closeModal('modal-add-event');
+            await this._loadEvents();
+            if (typeof showToast !== 'undefined') showToast('Event added', 'success');
+        } catch (err) {
+            if (typeof showToast !== 'undefined') showToast('Failed: ' + err.message, 'error');
+        } finally {
+            if (btn) { btn.disabled = false; btn.textContent = orig; }
+        }
     },
 };

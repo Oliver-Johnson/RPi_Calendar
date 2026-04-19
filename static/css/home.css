@@ -299,3 +299,177 @@
     font-size: 14px;
     padding: 1rem 0;
 }
+
+/* ---- Floating Action Buttons ---- */
+.home-fab-container {
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    gap: 2rem;
+    padding: 0 1.5rem 1.5rem;
+    flex-shrink: 0;
+}
+
+.home-fab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: rgba(30, 30, 30, 0.85);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    cursor: pointer;
+    transition: transform 0.12s ease, background 0.12s ease;
+    color: #f0f0f0;
+    min-width: 72px;
+    min-height: 72px;
+}
+
+.home-fab:active {
+    transform: scale(0.9);
+    background: rgba(60, 60, 60, 0.9);
+}
+
+.home-fab-icon {
+    font-size: 28px;
+    line-height: 1;
+}
+
+.home-fab-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: #a0a0a0;
+    letter-spacing: 0.3px;
+}
+
+.home-fab-dismiss.hidden {
+    display: none;
+}
+
+/* ---- Quick-action modals ---- */
+.home-quick-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    padding: 1rem;
+}
+
+.home-quick-modal.hidden {
+    display: none;
+}
+
+.home-quick-modal-content {
+    position: relative;
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 20px;
+    padding: 2rem;
+    width: 80vw;
+    max-width: 480px;
+    max-height: 90vh;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.home-quick-modal-close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #c0c0c0;
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.1s ease;
+    min-width: 48px;
+    min-height: 48px;
+}
+
+.home-quick-modal-close:active {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.home-quick-modal-title {
+    font-size: 24px;
+    font-weight: 500;
+    color: #f0f0f0;
+    padding-right: 3rem;
+    margin-bottom: 0.5rem;
+}
+
+.home-quick-modal-content form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.875rem;
+}
+
+.home-quick-modal-content input[type="text"],
+.home-quick-modal-content input[type="date"],
+.home-quick-modal-content input[type="datetime-local"],
+.home-quick-modal-content select {
+    width: 100%;
+    background: #111;
+    border: 1px solid #333;
+    border-radius: 10px;
+    color: #f0f0f0;
+    font-size: 18px;
+    padding: 0.75rem 1rem;
+    min-height: 56px;
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+}
+
+.home-quick-modal-content input:focus,
+.home-quick-modal-content select:focus {
+    border-color: #3b82f6;
+}
+
+.home-quick-modal-content input::placeholder {
+    color: #555;
+}
+
+.home-quick-modal-submit {
+    width: 100%;
+    height: 56px;
+    background: #3b82f6;
+    color: #fff;
+    font-size: 17px;
+    font-weight: 600;
+    border-radius: 12px;
+    border: none;
+    cursor: pointer;
+    margin-top: 0.25rem;
+    transition: background 0.1s ease, transform 0.1s ease;
+    min-height: 56px;
+    touch-action: manipulation;
+}
+
+.home-quick-modal-submit:active {
+    background: #2563eb;
+    transform: scale(0.98);
+}
+
+.home-quick-modal-submit:disabled {
+    background: #374151;
+    cursor: not-allowed;
+}
