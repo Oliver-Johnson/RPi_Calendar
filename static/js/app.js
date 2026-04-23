@@ -44,7 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
     lucide.createIcons();
 
     // ── View routing ────────────────────────────────────────────────────
-    const views = { home: 'view-home', tasks: 'view-tasks', calendar: 'view-calendar', insights: 'view-insights', jobs: 'view-jobs', agency: 'view-agency' };
+    const views = { home: 'view-home', tasks: 'view-tasks', calendar: 'view-calendar', insights: 'view-insights', jobs: 'view-jobs', agency: 'view-agency', notes: 'view-notes' };
     let currentView = 'home';
 
     function switchView(view) {
@@ -64,6 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (view === 'insights') InsightsView.render();
         if (view === 'jobs') JobsView.render();
         if (view === 'agency') AgencyView.render();
+        if (view === 'notes') NotesView.init();
         closeSidebar();
     }
 

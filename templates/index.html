@@ -122,6 +122,11 @@
                 <i data-lucide="rocket" class="w-5 h-5"></i>
                 Agency
             </button>
+            <button data-view="notes"
+                    class="nav-btn w-full text-left px-4 py-2.5 rounded-lg flex items-center gap-3 text-sm font-medium transition-colors">
+                <i data-lucide="notebook-pen" class="w-5 h-5"></i>
+                Notes
+            </button>
         </nav>
 
         <!-- Outlook Calendars -->
@@ -177,6 +182,7 @@
 
         <!-- Agency View -->
         <div id="view-agency" class="hidden flex-1 overflow-y-auto p-4 md:p-6 bg-gray-50/30 dark:bg-darkpanel/10"></div>
+        <div id="view-notes" class="hidden flex-1 min-h-0 overflow-hidden"></div>
     </main>
 
     <!-- Pull-to-refresh indicator -->
@@ -236,6 +242,7 @@
     <script src="{{ url_for('static', filename='js/agency.js') }}"></script>
     <script src="{{ url_for('static', filename='js/timer.js') }}"></script>
     <script src="{{ url_for('static', filename='js/touch.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/notes.js') }}"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
     <div id="sleep-overlay" style="display:none; position:fixed; inset:0; background:#000; z-index:99999; cursor:none;"></div>
 </body>

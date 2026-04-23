@@ -33,10 +33,14 @@ def create_app():
     from app.routes_api import api_bp
     from app.routes_auth import auth_bp
     from app.routes_weather import weather_bp
+    from app.routes_ai import ai_bp
+    from app.routes_notes import notes_bp
 
     app.register_blueprint(api_bp, url_prefix='/api')
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(weather_bp, url_prefix='/api')
+    app.register_blueprint(ai_bp, url_prefix='/api/ai')
+    app.register_blueprint(notes_bp, url_prefix='/api/notes')
 
     @app.route('/')
     def index():
@@ -74,6 +78,7 @@ def _run_migrations(database):
         "ALTER TABLE events ADD COLUMN excluded_from_schedule BOOLEAN DEFAULT 0",
         "ALTER TABLE scheduled_blocks ADD COLUMN is_pinned BOOLEAN DEFAULT 0",
         "ALTER TABLE job_listings ADD COLUMN deadline VARCHAR(100)",
+        "ALTER TABLE notes ADD COLUMN updated_at DATETIME",
     ]
     for sql in migrations:
         try:

@@ -169,6 +169,33 @@ class ScheduledBlock(db.Model):
     def __repr__(self):
         return f'<ScheduledBlock task={self.task_id} {self.start_time}>'
 
+class Note(db.Model):
+    __tablename__ = 'notes'
+
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False, default='Untitled')
+    content = db.Column(db.Text, default='')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self, full=True):
+        d = {
+            'id': self.id,
+            'title': self.title,
+            'created_at': self.created_at.isoformat(),
+            'updated_at': self.updated_at.isoformat(),
+        }
+        if full:
+            d['content'] = self.content
+        else:
+            snippet = (self.content or '')[:100].replace('\n', ' ')
+            d['snippet'] = snippet
+        return d
+
+    def __repr__(self):
+        return f'<Note {self.title}>'
+
+
 class JobSearch(db.Model):
     __tablename__ = 'job_searches'
 

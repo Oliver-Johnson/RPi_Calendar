@@ -205,6 +205,25 @@ const API = {
     getScrapeStatus() {
         return this.request('/api/jobs/scrape/status');
     },
+    getNotes() {
+        return this.request('/api/notes');
+    },
+    getNote(id) {
+        return this.request(`/api/notes/${id}`);
+    },
+    createNote(data) {
+        return this.request('/api/notes', { method: 'POST', body: JSON.stringify(data) });
+    },
+    updateNote(id, data) {
+        return this.request(`/api/notes/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
+    },
+    appendNote(id, text) {
+        return this.request(`/api/notes/${id}/append`, { method: 'POST', body: JSON.stringify({ text }) });
+    },
+    deleteNote(id) {
+        return this.request(`/api/notes/${id}`, { method: 'DELETE' });
+    },
+
     displaySleep() { return this.request('/api/display/sleep', { method: 'POST' }); },
     displayWake()  { return this.request('/api/display/wake',  { method: 'POST' }); },
 };
