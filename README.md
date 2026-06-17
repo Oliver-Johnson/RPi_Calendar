@@ -1,103 +1,117 @@
 # Pi-Schedule
 
-A lightweight calendar and task management app designed to run on a Raspberry Pi, with Microsoft Outlook sync.
+A Flask + SQLite calendar, task management, and job-hunting app designed to run permanently on a Raspberry Pi. Manages calendar events (with Outlook sync), prioritised tasks with scheduled time blocks, and an automated job scraper that feeds validated listings into a separate job-applier pipeline.
 
 ## Features
 
-- **Priority Tasks** — Create, edit, and organize tasks by priority (High / Medium / Low)
-- **Calendar Views** — Month, Week, and Day views with event management
-- **Outlook Sync** — Pull calendar events from Microsoft Outlook via the Graph API
-- **Local-first** — Runs entirely on your network with a SQLite database
+- **Calendar** — Month, Week, and Day views; manual events plus Outlook sync via Microsoft Graph API
+- **Tasks** — Create tasks with priority (High/Medium/Low), due dates, estimated duration, recurrence rules, and sub-tasks
+- **Scheduled Blocks** — Assign calendar time blocks to tasks; track scheduled vs. completed minutes
+- **Job Searches** — Define keyword searches (DuckDuckGo) and direct job board URLs to spider
+- **Job Scraper** — Runs on a schedule; verifies listings are active (heuristic keyword scoring + deadline extraction), deduplicates, and stores results
+- **Job Applier Integration** — Each verified listing is POSTed to a configurable webhook (`JOB_APPLIER_URL`) for automated downstream processing
+- **Local-first** — Everything runs on your network; SQLite database, no cloud dependency beyond optional Outlook sync
 
-## Quick Start
-
-### On Raspberry Pi
+## Setup (Raspberry Pi)
 
 ```bash
 git clone <repo-url> ~/pi-schedule
 cd ~/pi-schedule
+cp .env.example .env   # edit with your settings (see below)
 bash setup_pi.sh
 ```
 
-The setup script installs dependencies, creates a virtual environment, and configures a systemd service that starts on boot.
+`setup_pi.sh` creates a Python virtual environment, installs dependencies, and registers a **systemd service** (`pi-schedule.service`) that starts on boot.
 
-### For Development
+## Running
+
+| Action | Command |
+|--------|---------|
+| Start service | `sudo systemctl start pi-schedule` |
+| Stop service | `sudo systemctl stop pi-schedule` |
+| Check status | `sudo systemctl status pi-schedule` |
+| View logs | `journalctl -u pi-schedule -f` |
+
+The app listens on port **5000** and is accessible at `http://<pi-ip>:5000`.
+
+### Local development
 
 ```bash
 python -m venv venv
-source venv/bin/activate   # or venv\Scripts\activate on Windows
+source venv/bin/activate      # Windows: venv\Scripts\activate
 pip install -r requirements.txt
-cp .env.example .env       # then edit with your settings
+cp .env.example .env
 python run.py
 ```
 
-Open `http://localhost:5000` in your browser.
+## Environment Variables (`.env`)
 
-## API Endpoints
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `SECRET_KEY` | Yes | Flask session secret |
+| `AZURE_CLIENT_ID` | Outlook sync | Azure app client ID |
+| `AZURE_CLIENT_SECRET` | Outlook sync | Azure app client secret |
+| `AZURE_TENANT_ID` | Outlook sync | Azure directory tenant ID |
+| `AZURE_REDIRECT_URI` | Outlook sync | e.g. `http://<pi-ip>:5000/auth/callback` |
+| `JOB_APPLIER_URL` | Job pipeline | Webhook URL for the job-applier service |
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/tasks` | List tasks (filter: `?priority=High`, `?status=Pending`) |
-| POST | `/api/tasks` | Create task |
-| PUT | `/api/tasks/<id>` | Update task |
-| DELETE | `/api/tasks/<id>` | Delete task |
-| GET | `/api/events` | List events (filter: `?start=...&end=...`) |
-| POST | `/api/events` | Create event |
-| PUT | `/api/events/<id>` | Update event |
-| DELETE | `/api/events/<id>` | Delete event |
+## Outlook Sync Setup
 
-## Azure App Registration (for Outlook Sync)
+1. Go to [Azure Portal](https://portal.azure.com) → **Microsoft Entra ID** → **App registrations** → **New registration**
+   - Redirect URI: `http://<your-pi-ip>:5000/auth/callback`
+2. Copy **Application (client) ID** → `AZURE_CLIENT_ID` and **Directory (tenant) ID** → `AZURE_TENANT_ID`
+3. Under **Certificates & secrets**, create a new client secret → `AZURE_CLIENT_SECRET`
+4. Under **API permissions**, add **Microsoft Graph → Delegated → Calendars.Read** and grant admin consent
 
-To sync with Outlook, you need to register an application in Azure:
+## Job Scraper
 
-1. Go to [Azure Portal](https://portal.azure.com) > **Microsoft Entra ID** > **App registrations**
-2. Click **New registration**
-   - **Name**: `Pi-Schedule`
-   - **Supported account types**: Accounts in this organizational directory only (Single tenant)
-   - **Redirect URI**: Select **Web** and enter `http://<your-pi-ip>:5000/auth/callback`
-3. After registration, note these values from the **Overview** page:
-   - **Application (client) ID** → `AZURE_CLIENT_ID`
-   - **Directory (tenant) ID** → `AZURE_TENANT_ID`
-4. Go to **Certificates & secrets** > **New client secret**
-   - Copy the secret **Value** (not the ID) → `AZURE_CLIENT_SECRET`
-5. Go to **API permissions** > **Add a permission**
-   - Select **Microsoft Graph** > **Delegated permissions**
-   - Add **Calendars.Read**
-   - Click **Grant admin consent** (if you have admin access)
-6. Update your `.env` file:
-   ```
-   AZURE_CLIENT_ID=<your-client-id>
-   AZURE_CLIENT_SECRET=<your-client-secret>
-   AZURE_TENANT_ID=<your-tenant-id>
-   AZURE_REDIRECT_URI=http://<your-pi-ip>:5000/auth/callback
-   ```
+The scraper runs automatically via APScheduler. It processes two source types:
+
+- **Keyword searches** — queries DuckDuckGo and verifies each result URL is an active job posting
+- **Job boards** — spiders a direct board URL for job links, then cross-references against active keyword searches
+
+Verified listings are saved to the database and (if `JOB_APPLIER_URL` is set) forwarded to the job-applier webhook with title, company, description, location, salary, and deadline.
+
+## Deploy Scripts (local only, gitignored)
+
+Three helper scripts exist locally for deploying to the Pi over SSH — they are **not committed** to the repo:
+
+| Script | Purpose |
+|--------|---------|
+| `check_pi.py` | Verify Pi is reachable and service is running |
+| `deploy_to_pi.py` | Sync code to the Pi and restart the service |
+| `finish_deploy.py` | Post-deploy checks |
+
+Set the `PI_PASS` environment variable before running them:
+
+```bash
+PI_PASS=yourpassword python deploy_to_pi.py
+```
 
 ## Project Structure
 
 ```
 ├── app/
-│   ├── __init__.py        # Flask app factory
-│   ├── models.py          # Task and Event database models
-│   ├── routes_api.py      # CRUD API endpoints
-│   ├── routes_auth.py     # OAuth2 authentication routes
+│   ├── __init__.py        # Flask app factory + APScheduler
+│   ├── models.py          # Task, Event, ScheduledBlock, JobSearch, JobBoard, JobListing
+│   ├── routes_api.py      # REST API endpoints
+│   ├── routes_auth.py     # OAuth2 / Outlook auth routes
 │   └── sync.py            # Microsoft Graph sync logic
+├── scripts/
+│   └── scraper.py         # Job scraper (DuckDuckGo + board spidering)
 ├── static/
-│   ├── css/app.css        # Custom styles
-│   └── js/
-│       ├── app.js         # SPA routing and initialization
-│       ├── api.js         # API client
-│       ├── calendar.js    # Calendar view (Month/Week/Day)
-│       ├── tasks.js       # Task view with priority grouping
-│       └── utils.js       # Date utilities
+│   ├── css/app.css
+│   └── js/                # Vanilla JS SPA (calendar, tasks, jobs views)
 ├── templates/
 │   └── index.html         # SPA shell
-├── run.py                 # Application entry point
-├── setup_pi.sh            # Raspberry Pi deployment script
-└── requirements.txt       # Python dependencies
+├── run.py                 # Entry point
+├── setup_pi.sh            # Pi systemd service installer
+└── requirements.txt
 ```
 
 ## Tech Stack
 
-- **Backend**: Python, Flask, SQLAlchemy, SQLite
+- **Backend**: Python, Flask, SQLAlchemy, SQLite, Flask-APScheduler
 - **Frontend**: Vanilla JavaScript, Tailwind CSS (CDN), Lucide Icons (CDN)
-- **Integration**: MSAL (Microsoft Authentication Library), Microsoft Graph API
+- **Scraping**: Scrapling (adaptive HTTP + headless browser), BeautifulSoup, DuckDuckGo Search
+- **Outlook integration**: MSAL, Microsoft Graph API
